@@ -46,6 +46,33 @@ import { User as FirebaseUser, signInAnonymously, onAuthStateChanged } from 'fir
 import { signInAnonymously, onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
 ```
 
+### 3. TypeScript Import Error
+
+**ปัญหา:**
+```
+Uncaught SyntaxError: The requested module does not provide an export named 'Category'
+```
+
+**สาเหตุ:** TypeScript types ต้องใช้ `import type` สำหรับ type imports
+
+**วิธีแก้ไข:**
+**ก่อน:**
+```ts
+import { Menu, Location, Category, Taste } from '../types/menu';
+```
+
+**หลัง:**
+```ts
+import type { Menu, Location, Category, Taste } from '../types/menu';
+```
+
+**ไฟล์ที่ต้องแก้ไข:**
+- `src/hooks/useMenus.ts`
+- `src/pages/Search.tsx`
+- `src/components/MenuCard.tsx`
+- `src/utils/healthScore.ts`
+- `src/constants/enums.ts` ← ไฟล์นี้ลืมแก้!
+
 ### 3. การแก้ไขอื่นๆ
 
 - ลบ `src/App.css` ที่ไม่ต้องการ

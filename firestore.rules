@@ -8,7 +8,7 @@ service cloud.firestore {
 
     match /menus/{id} {
       allow read: if true;       // public
-      allow write: if false;     // seed ด้วย admin/script เท่านั้นในระยะแรก
+      allow write: if false;     // seed เสร็จแล้ว ปิดการเขียน
     }
 
     match /logs/{id} {

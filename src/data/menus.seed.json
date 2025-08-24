@@ -1,0 +1,162 @@
+[
+  {
+    "id": "menu_001",
+    "name": "ข้าวกะเพราไก่",
+    "vendor": "ร้านกะเพราแม่",
+    "location": "ENG_CANTEEN",
+    "category": "RICE",
+    "tastes": ["SPICY", "OILY"],
+    "ingredients": {
+      "veggies": ["กะเพรา", "พริก"],
+      "proteins": ["ไก่"],
+      "cooking": "STIR"
+    },
+    "nutrition": {
+      "cal": 450,
+      "fat": 15,
+      "sugar": 5,
+      "sodium": 800
+    },
+    "updatedAt": 1756049677000
+  },
+  {
+    "id": "menu_002",
+    "name": "ข้าวผัดกุ้ง",
+    "vendor": "ร้านข้าวผัดป้า",
+    "location": "ENG_CANTEEN",
+    "category": "RICE",
+    "tastes": ["OILY", "BLAND"],
+    "ingredients": {
+      "veggies": ["แครอท", "ถั่วลันเตา"],
+      "proteins": ["กุ้ง"],
+      "cooking": "STIR"
+    },
+    "nutrition": {
+      "cal": 520,
+      "fat": 18,
+      "sugar": 8,
+      "sodium": 950
+    },
+    "updatedAt": 1756049677000
+  },
+  {
+    "id": "menu_003",
+    "name": "ก๋วยเตี๋ยวต้มยำ",
+    "vendor": "ร้านก๋วยเตี๋ยวคุณป้า",
+    "location": "HEALTH_CANTEEN",
+    "category": "NOODLE",
+    "tastes": ["SPICY", "SOUR"],
+    "ingredients": {
+      "veggies": ["ผักบุ้ง", "เห็ด", "มะเขือเทศ"],
+      "proteins": ["หมู"],
+      "cooking": "BOIL"
+    },
+    "nutrition": {
+      "cal": 380,
+      "fat": 8,
+      "sugar": 12,
+      "sodium": 1200
+    },
+    "updatedAt": 1756049677000
+  },
+  {
+    "id": "menu_004",
+    "name": "ส้มตำไทย",
+    "vendor": "ร้านส้มตำลุง",
+    "location": "DORM_CANTEEN",
+    "category": "RICE",
+    "tastes": ["SPICY", "SOUR", "SWEET"],
+    "ingredients": {
+      "veggies": ["มะละกอ", "มะเขือเทศ", "ถั่วฝักยาว"],
+      "proteins": ["กุ้งแห้ง"],
+      "cooking": "STIR"
+    },
+    "nutrition": {
+      "cal": 280,
+      "fat": 5,
+      "sugar": 15,
+      "sodium": 600
+    },
+    "updatedAt": 1756049677000
+  },
+  {
+    "id": "menu_005",
+    "name": "ไก่ทอด",
+    "vendor": "ร้านไก่ทอดป้า",
+    "location": "ENG_CANTEEN",
+    "category": "FRIED",
+    "tastes": ["OILY"],
+    "ingredients": {
+      "veggies": [],
+      "proteins": ["ไก่"],
+      "cooking": "FRY"
+    },
+    "nutrition": {
+      "cal": 650,
+      "fat": 35,
+      "sugar": 2,
+      "sodium": 1100
+    },
+    "updatedAt": 1756049677000
+  },
+  {
+    "id": "menu_006",
+    "name": "ข้าวกล้องผัดกะเพราเต้าหู้",
+    "vendor": "ร้านสุขภาพ",
+    "location": "HEALTH_CANTEEN",
+    "category": "RICE",
+    "tastes": ["SPICY"],
+    "ingredients": {
+      "veggies": ["กะเพรา", "พริก", "คะน้า"],
+      "proteins": ["เต้าหู้"],
+      "cooking": "STIR"
+    },
+    "nutrition": {
+      "cal": 320,
+      "fat": 8,
+      "sugar": 6,
+      "sodium": 700
+    },
+    "updatedAt": 1756049677000
+  },
+  {
+    "id": "menu_007",
+    "name": "น้ำส้มคั้น",
+    "vendor": "ร้านน้ำผลไม้",
+    "location": "ENG_CANTEEN",
+    "category": "DRINK",
+    "tastes": ["SWEET", "SOUR"],
+    "ingredients": {
+      "veggies": ["ส้ม"],
+      "proteins": [],
+      "cooking": "BOIL"
+    },
+    "nutrition": {
+      "cal": 120,
+      "fat": 0,
+      "sugar": 25,
+      "sodium": 5
+    },
+    "updatedAt": 1756049677000
+  },
+  {
+    "id": "menu_008",
+    "name": "ข้าวมันไก่",
+    "vendor": "ร้านข้าวมันไก่",
+    "location": "DORM_CANTEEN",
+    "category": "RICE",
+    "tastes": ["OILY", "BLAND"],
+    "ingredients": {
+      "veggies": ["แตงกวา", "ผักชี"],
+      "proteins": ["ไก่"],
+      "cooking": "STEAM"
+    },
+    "nutrition": {
+      "cal": 480,
+      "fat": 20,
+      "sugar": 3,
+      "sodium": 850
+    },
+    "updatedAt": 1756049677000
+  }
+]

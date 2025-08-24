@@ -1,4 +1,4 @@
-import { Location, Category, Taste, Cooking } from '../types/menu';
+import type { Location, Category, Taste, Cooking } from '../types/menu';
 
 export const LOCATIONS: Record<Location, string> = {
   ENG_CANTEEN: 'โรงอาหารวิศวะ',
