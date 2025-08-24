@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Menu } from '../types/menu';
 import { LOCATIONS, CATEGORIES, TASTES } from '../constants/enums';
 import { calcHealthScore } from '../utils/healthScore';
@@ -10,12 +11,21 @@ interface MenuCardProps {
 }
 
 export default function MenuCard({ menu, onClick }: MenuCardProps) {
+  const navigate = useNavigate();
   const healthScore = calcHealthScore(menu);
+
+  const handleClick = () => {
+    if (onClick) {
+      onClick();
+    } else {
+      navigate(`/menu/${menu.id}`);
+    }
+  };
 
   return (
     <div 
       className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer p-4"
-      onClick={onClick}
+      onClick={handleClick}
     >
       <div className="flex justify-between items-start mb-2">
         <h3 className="text-lg font-semibold text-gray-800">{menu.name}</h3>

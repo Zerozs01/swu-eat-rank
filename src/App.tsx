@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth } from './hooks/useAuth';
 import Home from './pages/Home';
 import Search from './pages/Search';
+import MenuDetail from './pages/MenuDetail';
 import Board from './pages/Board';
 import Me from './pages/Me';
 
@@ -36,6 +37,7 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/search" element={<Search />} />
+          <Route path="/menu/:id" element={<MenuDetail />} />
           <Route path="/board" element={<Board />} />
           <Route path="/me" element={<Me />} />
         </Routes>

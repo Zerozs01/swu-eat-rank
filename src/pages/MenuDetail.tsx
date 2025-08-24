@@ -1,0 +1,266 @@
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { LOCATIONS, CATEGORIES, TASTES, COOKING_METHODS, FACULTIES } from '../constants/enums';
+import { calcHealthScore, getHealthScoreLabel } from '../utils/healthScore';
+import HealthBadge from '../components/HealthBadge';
+import { useLogs } from '../hooks/useLogs';
+import type { Menu } from '../types/menu';
+
+export default function MenuDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [selectedFaculty, setSelectedFaculty] = useState('');
+  const [visibility, setVisibility] = useState<'public' | 'private'>('public');
+  
+  const { createLog } = useLogs();
+
+  const { data: menu, isLoading, error } = useQuery({
+    queryKey: ['menu', id],
+    queryFn: async (): Promise<Menu> => {
+      if (!id) throw new Error('Menu ID is required');
+      const menuDoc = await getDoc(doc(db, 'menus', id));
+      if (!menuDoc.exists()) {
+        throw new Error('Menu not found');
+      }
+      return { id: menuDoc.id, ...menuDoc.data() } as Menu;
+    },
+    enabled: !!id,
+  });
+
+  const handleLogMeal = async () => {
+    if (!menu || !selectedFaculty) return;
+    
+    try {
+      await createLog.mutateAsync({
+        menuId: menu.id,
+        faculty: selectedFaculty,
+        visibility
+      });
+      
+      // Show success message
+      alert('บันทึกการกินสำเร็จ! 🎉');
+      navigate('/me');
+    } catch (error) {
+      console.error('Error logging meal:', error);
+      alert('เกิดข้อผิดพลาดในการบันทึก');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">กำลังโหลดเมนู...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !menu) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600 mb-4">ไม่พบเมนูที่ต้องการ</p>
+          <button
+            onClick={() => navigate('/search')}
+            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            กลับไปค้นหา
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const healthScore = calcHealthScore(menu);
+  const healthLabel = getHealthScoreLabel(healthScore);
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8">
+        {/* Header */}
+        <div className="mb-6">
+          <button
+            onClick={() => navigate('/search')}
+            className="flex items-center text-blue-600 hover:text-blue-800 mb-4"
+          >
+            ← กลับไปค้นหา
+          </button>
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">{menu.name}</h1>
+          <p className="text-lg text-gray-600">{menu.vendor}</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Menu Info */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">ข้อมูลเมนู</h2>
+            
+            <div className="space-y-4">
+              {/* Health Score */}
+              <div className="flex items-center justify-between">
+                <span className="text-gray-700">Health Score:</span>
+                <HealthBadge score={healthScore} />
+              </div>
+
+              {/* Location & Category */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-sm text-gray-500">📍 โรงอาหาร</span>
+                  <p className="font-medium">{LOCATIONS[menu.location]}</p>
+                </div>
+                <div>
+                  <span className="text-sm text-gray-500">🍽️ ประเภท</span>
+                  <p className="font-medium">{CATEGORIES[menu.category]}</p>
+                </div>
+              </div>
+
+              {/* Tastes */}
+              <div>
+                <span className="text-sm text-gray-500">😋 รสชาติ</span>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {menu.tastes.map((taste) => (
+                    <span
+                      key={taste}
+                      className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-sm"
+                    >
+                      {TASTES[taste]}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Ingredients */}
+              <div>
+                <span className="text-sm text-gray-500">🥬 ส่วนผสม</span>
+                <div className="mt-1">
+                  {menu.ingredients.veggies && menu.ingredients.veggies.length > 0 && (
+                    <div className="mb-2">
+                      <span className="text-xs text-gray-500">ผัก:</span>
+                      <span className="ml-2 text-sm">{menu.ingredients.veggies.join(', ')}</span>
+                    </div>
+                  )}
+                  {menu.ingredients.proteins && menu.ingredients.proteins.length > 0 && (
+                    <div className="mb-2">
+                      <span className="text-xs text-gray-500">โปรตีน:</span>
+                      <span className="ml-2 text-sm">{menu.ingredients.proteins.join(', ')}</span>
+                    </div>
+                  )}
+                  {menu.ingredients.cooking && (
+                    <div>
+                      <span className="text-xs text-gray-500">วิธีปรุง:</span>
+                      <span className="ml-2 text-sm">{COOKING_METHODS[menu.ingredients.cooking]}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Nutrition */}
+              {menu.nutrition && (
+                <div>
+                  <span className="text-sm text-gray-500">📊 โภชนาการ</span>
+                  <div className="grid grid-cols-2 gap-4 mt-2">
+                    <div>
+                      <span className="text-xs text-gray-500">🔥 แคลอรี่</span>
+                      <p className="font-medium">{menu.nutrition.cal} cal</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500">🧈 ไขมัน</span>
+                      <p className="font-medium">{menu.nutrition.fat}g</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500">🍯 น้ำตาล</span>
+                      <p className="font-medium">{menu.nutrition.sugar}g</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-500">🧂 โซเดียม</span>
+                      <p className="font-medium">{menu.nutrition.sodium}mg</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Log Meal */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold text-gray-800 mb-4">บันทึกการกิน</h2>
+            
+            <div className="space-y-4">
+              {/* Faculty Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  คณะของคุณ
+                </label>
+                <select
+                  value={selectedFaculty}
+                  onChange={(e) => setSelectedFaculty(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">เลือกคณะ</option>
+                  {FACULTIES.map((faculty) => (
+                    <option key={faculty} value={faculty}>
+                      {faculty}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Visibility Toggle */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  การแสดงผล
+                </label>
+                <div className="flex space-x-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      value="public"
+                      checked={visibility === 'public'}
+                      onChange={(e) => setVisibility(e.target.value as 'public' | 'private')}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">สาธารณะ (รวมในสถิติ)</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      value="private"
+                      checked={visibility === 'private'}
+                      onChange={(e) => setVisibility(e.target.value as 'public' | 'private')}
+                      className="mr-2"
+                    />
+                    <span className="text-sm">ส่วนตัว</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Log Button */}
+              <button
+                onClick={handleLogMeal}
+                disabled={!selectedFaculty || createLog.isPending}
+                className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+              >
+                {createLog.isPending ? 'กำลังบันทึก...' : '🍽️ ฉันกินเมนูนี้!'}
+              </button>
+
+              {/* Health Tips */}
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                <h3 className="font-medium text-blue-800 mb-2">💡 เคล็ดลับสุขภาพ</h3>
+                <p className="text-sm text-blue-700">
+                  {healthScore >= 80 && 'เมนูนี้ดีต่อสุขภาพมาก! 🎉'}
+                  {healthScore >= 60 && healthScore < 80 && 'เมนูนี้ดีต่อสุขภาพ ควรกินในปริมาณที่เหมาะสม'}
+                  {healthScore >= 40 && healthScore < 60 && 'เมนูนี้ควรกินในปริมาณน้อย และเสริมด้วยผักผลไม้'}
+                  {healthScore < 40 && 'เมนูนี้ควรกินในปริมาณน้อย และหันไปกินเมนูที่มีประโยชน์มากกว่า'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
