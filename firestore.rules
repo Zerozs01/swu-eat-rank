@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    match /menus/{id} {
+      allow read: if true;       // public
+      allow write: if false;     // seed ด้วย admin/script เท่านั้นในระยะแรก
+    }
+
+    match /logs/{id} {
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.visibility in ['public','private'];
+      allow read: if isSignedIn()
+        && resource.data.userId == request.auth.uid; // อ่านได้เฉพาะของตัวเอง
+      allow update, delete: if false; // v1: ไม่แก้ไขภายหลัง
+    }
+
+    match /users/{id} {
+      allow read, write: if isSignedIn() && request.auth.uid == id;
+    }
+
+    // aggregates: อ่านได้ทั้งหมด เขียนเฉพาะ CF/admin
+    match /aggregates/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

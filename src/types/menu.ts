@@ -1,0 +1,41 @@
+export type Location = 'ENG_CANTEEN' | 'HEALTH_CANTEEN' | 'DORM_CANTEEN';
+export type Category = 'RICE' | 'NOODLE' | 'FRIED' | 'DESSERT' | 'DRINK';
+export type Taste = 'SWEET' | 'OILY' | 'SPICY' | 'SOUR' | 'BLAND';
+export type Cooking = 'FRY' | 'BOIL' | 'STEAM' | 'STIR';
+
+export interface Menu {
+  id: string;
+  name: string;
+  vendor: string;
+  location: Location;
+  category: Category;
+  tastes: Taste[];
+  ingredients: {
+    veggies?: string[];
+    proteins?: string[];
+    cooking?: Cooking;
+  };
+  nutrition?: {
+    cal?: number;
+    fat?: number;
+    sugar?: number;
+    sodium?: number;
+  };
+  healthScore?: number;
+  updatedAt: number;
+}
+
+export interface Log {
+  id: string;
+  userId: string;
+  menuId: string;
+  faculty: string; // ตัวอักษรไทยได้ เช่น "วิศวะ"
+  visibility: 'public' | 'private';
+  at: number;
+}
+
+export interface User {
+  id: string;
+  faculty?: string;
+  displayAnon?: boolean;
+}
