@@ -129,7 +129,7 @@ export default function MenuDetail() {
   }
 
   const healthScore = calcHealthScore(menu);
-  const healthLabel = getHealthScoreLabel(healthScore);
+  // const healthLabel = getHealthScoreLabel(healthScore);
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -13,7 +13,7 @@ export default function Board() {
   const [selectedCategory, setSelectedCategory] = useState<Category | ''>('');
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month'>('today');
 
-  const { data: todayLogs, isLoading: logsLoading } = useTodayLogs();
+  const { isLoading: logsLoading } = useTodayLogs();
   const { data: periodLogs, isLoading: periodLogsLoading } = useLogsByPeriod(timeFilter);
   const { data: allMenus, isLoading: menusLoading } = useMenus();
 

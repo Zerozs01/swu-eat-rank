@@ -82,7 +82,7 @@ export default function Me() {
 
   // Calculate badges
   const badges = useMemo(() => {
-    const { avgScore, totalMeals, totalQuantity, streakDays } = healthStats;
+    const { avgScore, totalMeals, streakDays } = healthStats;
     
     return [
       {

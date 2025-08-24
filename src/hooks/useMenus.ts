@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import type { Menu, Location, Category, Taste } from '../types/menu';
 
