@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useMenus } from '../hooks/useMenus';
 import { LOCATIONS, CATEGORIES } from '../constants/enums';
+import { SearchIcon, DiceIcon } from '../components/icons';
 import type { Location, Category } from '../types/menu';
 
 export default function Home() {
@@ -44,28 +45,33 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
-      <div className="container mx-auto px-4 py-8">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-800 mb-4">
-            🍽️ SWU EatRank
-          </h1>
-          
-          
-          {/* Random Menu Section */}
-          <div className="bg-white p-6 rounded-lg shadow-md mb-8 max-w-2xl mx-auto">
-            <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-              🎲 สุ่มเมนู
-            </h2>
-            <p className="text-gray-600 mb-4">
-              ไม่รู้จะกินอะไรดี? ให้เราเลือกให้!
-            </p>
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-gray-900 dark:to-gray-800">
+      <div className="container mx-auto px-4 py-16">
+        <div className="max-w-4xl mx-auto">
+          {/* Hero Section */}
+          <div className="text-center mb-16">
+            <h1 className="text-5xl font-bold text-gray-800 dark:text-white mb-6">
+              SWU EatRank
+            </h1>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          </div>
+
+          {/* Search Section */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 mb-12">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-2">
+                ค้นหาเมนูที่ชอบ
+              </h2>
+              <p className="text-gray-600 dark:text-gray-300">
+                ค้นหาและกรองเมนูตามโรงอาหาร ประเภท และรสชาติ
+              </p>
+            </div>
+            
+            <div className="flex flex-col md:flex-row gap-4 mb-6">
               <select
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value as Location | '')}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
               >
                 <option value="">ทุกโรงอาหาร</option>
                 {Object.entries(LOCATIONS).map(([key, value]) => (
@@ -76,7 +82,7 @@ export default function Home() {
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value as Category | '')}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
               >
                 <option value="">ทุกประเภท</option>
                 {Object.entries(CATEGORIES).map(([key, value]) => (
@@ -85,65 +91,56 @@ export default function Home() {
               </select>
             </div>
             
-            <button
-              onClick={handleRandomMenu}
-              disabled={isRandomizing}
-              className="w-full bg-purple-500 text-white py-3 px-4 rounded-lg hover:bg-purple-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-            >
-              {isRandomizing ? '🎲 กำลังสุ่ม...' : '🎲 สุ่มเมนูให้ฉัน!'}
-            </button>
+            <div className="flex gap-4">
+              <button
+                onClick={() => navigate('/search')}
+                className="flex-1 flex items-center justify-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white py-3 px-6 rounded-lg transition-colors"
+              >
+                <SearchIcon className="w-5 h-5" />
+                <span>ค้นหาเมนู</span>
+              </button>
+              
+              <button
+                onClick={handleRandomMenu}
+                disabled={isRandomizing}
+                className="flex-1 flex items-center justify-center space-x-2 bg-secondary-600 hover:bg-secondary-700 disabled:bg-gray-400 text-white py-3 px-6 rounded-lg transition-colors"
+              >
+               
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
+  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+</svg>
+
+                <span>{isRandomizing ? 'กำลังสุ่ม...' : 'สุ่มเมนู'}</span>
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            <Link
-              to="/search"
-              className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
-            >
-              <h2 className="text-2xl font-semibold text-gray-800 mb-2">
-                🔍 ค้นหาเมนู
-              </h2>
-              <p className="text-gray-600">
-                ค้นหาเมนูที่ชอบ ดู Health Score และข้อมูลโภชนาการ
-              </p>
-            </Link>
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center shadow-lg">
+              <div className="text-3xl font-bold text-primary-600 dark:text-primary-400 mb-2">
+                50+
+              </div>
+              <div className="text-gray-600 dark:text-gray-300">
+                เมนูให้เลือก
+              </div>
+            </div>
             
-            <Link
-              to="/board"
-              className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
-            >
-              <h2 className="text-2xl font-semibold text-gray-800 mb-2">
-                📊 กระดานรวม
-              </h2>
-              <p className="text-gray-600">
-                ดูเมนูยอดฮิตวันนี้ และสถิติการกินของเพื่อนๆ
-              </p>
-            </Link>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center shadow-lg">
+              <div className="text-3xl font-bold text-secondary-600 dark:text-secondary-400 mb-2">
+                3
+              </div>
+              <div className="text-gray-600 dark:text-gray-300">
+                โรงอาหาร
+              </div>
+            </div>
             
-            <Link
-              to="/me"
-              className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
-            >
-              <h2 className="text-2xl font-semibold text-gray-800 mb-2">
-                👤 ประวัติของฉัน
-              </h2>
-              <p className="text-gray-600">
-                ดูประวัติการกินและ Health Summary
-              </p>
-            </Link>
-            
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-2xl font-semibold text-gray-800 mb-2">
-                🔐 ระบบล็อคอิน
-              </h2>
-              <p className="text-gray-600">
-                สำหรับผู้ใช้ที่ต้องการบันทึกประวัติการกินและติดตามสุขภาพ
-              </p>
-              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                <p className="text-sm text-blue-700">
-                  <strong>ผู้ใช้ 2 แบบ:</strong><br/>
-                  • <strong>Anonymous:</strong> ค้นหาเมนู สุ่มเมนู ไม่ต้องล็อคอิน<br/>
-                  • <strong>Registered:</strong> บันทึกประวัติ ติดตามสุขภาพ (กำลังพัฒนา)
-                </p>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center shadow-lg">
+              <div className="text-3xl font-bold text-green-600 dark:text-green-400 mb-2">
+                100%
+              </div>
+              <div className="text-gray-600 dark:text-gray-300">
+                Health Score
               </div>
             </div>
           </div>
