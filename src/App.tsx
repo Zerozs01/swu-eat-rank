@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth } from './hooks/useAuth';
+import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Search from './pages/Search';
 import MenuDetail from './pages/MenuDetail';
@@ -34,6 +35,7 @@ function AppContent() {
   return (
     <Router>
       <div className="App">
+        <Navbar />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/search" element={<Search />} />
