@@ -38,10 +38,10 @@ export function calcHealthScore(menu: Menu): number {
 }
 
 export function getHealthScoreColor(score: number): string {
-  if (score >= 80) return 'text-green-600 bg-green-100';
-  if (score >= 60) return 'text-yellow-600 bg-yellow-100';
-  if (score >= 40) return 'text-orange-600 bg-orange-100';
-  return 'text-red-600 bg-red-100';
+  if (score >= 80) return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900';
+  if (score >= 60) return 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900';
+  if (score >= 40) return 'text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900';
+  return 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900';
 }
 
 export function getHealthScoreLabel(score: number): string {

@@ -17,15 +17,7 @@ export function useMenus(options: UseMenusOptions = {}) {
       console.log('useMenus: Fetching menus with options:', options);
       
       const menusRef = collection(db, 'menus');
-      let q = query(menusRef, orderBy('updatedAt', 'desc'));
-      
-      // Apply filters
-      if (options.location) {
-        q = query(q, where('location', '==', options.location));
-      }
-      if (options.category) {
-        q = query(q, where('category', '==', options.category));
-      }
+      const q = query(menusRef, orderBy('updatedAt', 'desc'));
       
       const snapshot = await getDocs(q);
       let menus = snapshot.docs.map(doc => ({
@@ -33,13 +25,25 @@ export function useMenus(options: UseMenusOptions = {}) {
         ...doc.data()
       })) as Menu[];
       
-      console.log('useMenus: Found', menus.length, 'menus');
+      console.log('useMenus: Found', menus.length, 'menus before filtering');
+      console.log('useMenus: Sample menu data:', menus.slice(0, 2));
       
-      // Client-side filtering for tastes and search
+      // Client-side filtering for all filters
+      if (options.location) {
+        menus = menus.filter(menu => menu.location === options.location);
+        console.log('useMenus: After location filter:', menus.length, 'menus');
+      }
+      
+      if (options.category) {
+        menus = menus.filter(menu => menu.category === options.category);
+        console.log('useMenus: After category filter:', menus.length, 'menus');
+      }
+      
       if (options.tastes && options.tastes.length > 0) {
         menus = menus.filter(menu => 
           options.tastes!.some(taste => menu.tastes.includes(taste))
         );
+        console.log('useMenus: After tastes filter:', menus.length, 'menus');
       }
       
       if (options.searchTerm) {
@@ -48,9 +52,10 @@ export function useMenus(options: UseMenusOptions = {}) {
           menu.name.toLowerCase().includes(term) ||
           menu.vendor.toLowerCase().includes(term)
         );
+        console.log('useMenus: After search filter:', menus.length, 'menus');
       }
       
-      console.log('useMenus: Returning', menus.length, 'menus after filtering');
+      console.log('useMenus: Returning', menus.length, 'menus after all filtering');
       return menus;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

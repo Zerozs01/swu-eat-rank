@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { collection, addDoc, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { collection, addDoc, query, where, orderBy, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Log } from '../types/menu';
@@ -130,5 +130,80 @@ export function useTodayLogs() {
       }
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+// Hook for getting logs by time period (for board)
+export function useLogsByPeriod(period: 'today' | 'week' | 'month') {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ['logsByPeriod', period],
+    queryFn: async (): Promise<Log[]> => {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      let startTime: number;
+
+      switch (period) {
+        case 'today':
+          startTime = today.getTime();
+          break;
+        case 'week':
+          startTime = today.getTime() - (7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'month':
+          startTime = today.getTime() - (30 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startTime = today.getTime();
+      }
+
+      console.log(`useLogsByPeriod: Fetching ${period} logs from`, new Date(startTime));
+
+      const logsRef = collection(db, 'logs');
+      
+      try {
+        // Get all public logs first
+        let q = query(logsRef, where('visibility', '==', 'public'));
+        const snapshot = await getDocs(q);
+        
+        // Filter by date on client side
+        let logs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Log[];
+        
+        logs = logs.filter(log => log.at >= startTime);
+        logs.sort((a, b) => b.at - a.at);
+        
+        console.log(`useLogsByPeriod: Found ${logs.length} logs for ${period}`);
+        return logs;
+      } catch (error) {
+        console.error('useLogsByPeriod: Error fetching logs:', error);
+        throw error;
+      }
+    },
+    staleTime: 2 * 60 * 1000, // 2 minutes
+  });
+}
+
+// Delete log mutation
+export function useDeleteLog() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (logId: string) => {
+      if (!user) throw new Error('User not authenticated');
+      
+      const logRef = doc(db, 'logs', logId);
+      await deleteDoc(logRef);
+      return logId;
+    },
+    onSuccess: () => {
+      // Invalidate and refetch user logs
+      queryClient.invalidateQueries({ queryKey: ['userLogs'] });
+      queryClient.invalidateQueries({ queryKey: ['todayLogs'] });
+    },
   });
 }

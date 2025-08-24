@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { LOCATIONS, CATEGORIES, TASTES } from '../constants/enums';
 import { calcHealthScore } from '../utils/healthScore';
 import HealthBadge from './HealthBadge';
+import { useDeleteLog } from '../hooks/useLogs';
+import { useNotification } from '../contexts/NotificationContext';
 import type { Log, Menu } from '../types/menu';
 
 interface LogCardProps {
@@ -11,7 +13,10 @@ interface LogCardProps {
 
 export default function LogCard({ log, menu }: LogCardProps) {
   const [showDetails, setShowDetails] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const healthScore = calcHealthScore(menu);
+  const deleteLog = useDeleteLog();
+  const { showNotification } = useNotification();
 
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -39,6 +44,27 @@ export default function LogCard({ log, menu }: LogCardProps) {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric'
+      });
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await deleteLog.mutateAsync(log.id);
+      showNotification({
+        type: 'success',
+        title: 'ลบสำเร็จ! ✅',
+        message: 'ลบประวัติการกินเรียบร้อยแล้ว',
+        duration: 3000
+      });
+      setShowDeleteConfirm(false);
+    } catch (error) {
+      console.error('Error deleting log:', error);
+      showNotification({
+        type: 'warning',
+        title: 'เกิดข้อผิดพลาด',
+        message: 'ไม่สามารถลบประวัติการกินได้ กรุณาลองใหม่อีกครั้ง',
+        duration: 5000
       });
     }
   };
@@ -96,13 +122,23 @@ export default function LogCard({ log, menu }: LogCardProps) {
         <HealthBadge score={healthScore} />
       </div>
 
-      {/* Toggle Details */}
-      <button
-        onClick={() => setShowDetails(!showDetails)}
-        className="w-full text-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
-      >
-        {showDetails ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียด'}
-      </button>
+             {/* Action Buttons */}
+       <div className="flex space-x-2">
+         <button
+           onClick={() => setShowDetails(!showDetails)}
+           className="flex-1 text-center text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+         >
+           {showDetails ? 'ซ่อนรายละเอียด' : 'ดูรายละเอียด'}
+         </button>
+         
+         <button
+           onClick={() => setShowDeleteConfirm(true)}
+           disabled={deleteLog.isPending}
+           className="px-3 py-1 text-sm text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+         >
+           {deleteLog.isPending ? 'กำลังลบ...' : '🗑️'}
+         </button>
+       </div>
 
       {/* Details Panel */}
       {showDetails && (
@@ -155,9 +191,38 @@ export default function LogCard({ log, menu }: LogCardProps) {
                 </div>
               </div>
             )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+                     </div>
+         </div>
+       )}
+
+       {/* Delete Confirmation Modal */}
+       {showDeleteConfirm && (
+         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+           <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-sm mx-4">
+             <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">
+               ยืนยันการลบ
+             </h3>
+             <p className="text-gray-600 dark:text-gray-300 mb-6">
+               คุณต้องการลบประวัติการกิน "{menu.name}" ใช่หรือไม่? การดำเนินการนี้ไม่สามารถยกเลิกได้
+             </p>
+             <div className="flex space-x-3">
+               <button
+                 onClick={() => setShowDeleteConfirm(false)}
+                 className="flex-1 px-4 py-2 text-gray-600 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+               >
+                 ยกเลิก
+               </button>
+               <button
+                 onClick={handleDelete}
+                 disabled={deleteLog.isPending}
+                 className="flex-1 px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed transition-colors"
+               >
+                 {deleteLog.isPending ? 'กำลังลบ...' : 'ลบ'}
+               </button>
+             </div>
+           </div>
+         </div>
+       )}
+     </div>
+   );
+ }

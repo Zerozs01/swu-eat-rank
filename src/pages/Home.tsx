@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMenus } from '../hooks/useMenus';
 import { LOCATIONS, CATEGORIES } from '../constants/enums';
-import { SearchIcon, DiceIcon } from '../components/icons';
+import { SearchIcon } from '../components/icons';
 import type { Location, Category } from '../types/menu';
 
 export default function Home() {
   const navigate = useNavigate();
   const [selectedLocation, setSelectedLocation] = useState<Location | ''>('');
   const [selectedCategory, setSelectedCategory] = useState<Category | ''>('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [isRandomizing, setIsRandomizing] = useState(false);
   
   const { data: menus } = useMenus();
@@ -50,10 +51,7 @@ export default function Home() {
         <div className="max-w-4xl mx-auto">
           {/* Hero Section */}
           <div className="text-center mb-16">
-            <h1 className="text-5xl font-bold text-gray-800 dark:text-white mb-6">
-              SWU EatRank
-            </h1>
-            
+      
           </div>
 
           {/* Search Section */}
@@ -68,6 +66,14 @@ export default function Home() {
             </div>
             
             <div className="flex flex-col md:flex-row gap-4 mb-6">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="ค้นหาชื่อเมนูหรือร้าน..."
+                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+              />
+              
               <select
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value as Location | '')}
@@ -93,11 +99,17 @@ export default function Home() {
             
             <div className="flex gap-4">
               <button
-                onClick={() => navigate('/search')}
+                onClick={() => navigate('/search', { 
+                  state: { 
+                    searchTerm, 
+                    location: selectedLocation, 
+                    category: selectedCategory 
+                  } 
+                })}
                 className="flex-1 flex items-center justify-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white py-3 px-6 rounded-lg transition-colors"
               >
                 <SearchIcon className="w-5 h-5" />
-                <span>ค้นหาเมนู</span>
+                <span>ค้นหาตาม Filter</span>
               </button>
               
               <button
