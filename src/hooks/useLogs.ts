@@ -8,6 +8,7 @@ interface CreateLogData {
   menuId: string;
   faculty: string;
   visibility: 'public' | 'private';
+  quantity: number;
 }
 
 export function useLogs() {
@@ -24,6 +25,7 @@ export function useLogs() {
         menuId: data.menuId,
         faculty: data.faculty,
         visibility: data.visibility,
+        quantity: data.quantity,
         at: Date.now(),
       };
 
@@ -49,26 +51,43 @@ export function useUserLogs(limit?: number) {
   return useQuery({
     queryKey: ['userLogs', user?.uid, limit],
     queryFn: async (): Promise<Log[]> => {
-      if (!user) return [];
-
-      const logsRef = collection(db, 'logs');
-      let q = query(
-        logsRef,
-        where('userId', '==', user.uid),
-        orderBy('at', 'desc')
-      );
-
-      const snapshot = await getDocs(q);
-      let logs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Log[];
-
-      if (limit) {
-        logs = logs.slice(0, limit);
+      if (!user) {
+        console.log('useUserLogs: No user, returning empty array');
+        return [];
       }
 
-      return logs;
+      console.log('useUserLogs: Fetching logs for user:', user.uid);
+
+      const logsRef = collection(db, 'logs');
+      
+      try {
+        // First, get all logs for the user without ordering
+        let q = query(logsRef, where('userId', '==', user.uid));
+        const snapshot = await getDocs(q);
+        console.log('useUserLogs: Found', snapshot.docs.length, 'logs');
+        
+        let logs = snapshot.docs.map(doc => {
+          const data = doc.data();
+          console.log('useUserLogs: Log data:', { id: doc.id, ...data });
+          return {
+            id: doc.id,
+            ...data
+          };
+        }) as Log[];
+
+        // Sort on client side
+        logs.sort((a, b) => b.at - a.at);
+
+        if (limit) {
+          logs = logs.slice(0, limit);
+        }
+
+        console.log('useUserLogs: Returning', logs.length, 'logs');
+        return logs;
+      } catch (error) {
+        console.error('useUserLogs: Error fetching logs:', error);
+        throw error;
+      }
     },
     enabled: !!user,
   });
@@ -85,19 +104,30 @@ export function useTodayLogs() {
       today.setHours(0, 0, 0, 0);
       const todayStart = today.getTime();
 
-      const logsRef = collection(db, 'logs');
-      const q = query(
-        logsRef,
-        where('visibility', '==', 'public'),
-        where('at', '>=', todayStart),
-        orderBy('at', 'desc')
-      );
+      console.log('useTodayLogs: Fetching logs from', new Date(todayStart));
 
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Log[];
+      const logsRef = collection(db, 'logs');
+      
+      try {
+        // Get all public logs first
+        let q = query(logsRef, where('visibility', '==', 'public'));
+        const snapshot = await getDocs(q);
+        
+        // Filter by date on client side
+        let logs = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as Log[];
+        
+        logs = logs.filter(log => log.at >= todayStart);
+        logs.sort((a, b) => b.at - a.at);
+        
+        console.log('useTodayLogs: Found', logs.length, 'logs for today');
+        return logs;
+      } catch (error) {
+        console.error('useTodayLogs: Error fetching logs:', error);
+        throw error;
+      }
     },
     staleTime: 2 * 60 * 1000, // 2 minutes
   });

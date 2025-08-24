@@ -14,6 +14,8 @@ export function useMenus(options: UseMenusOptions = {}) {
   return useQuery({
     queryKey: ['menus', options],
     queryFn: async (): Promise<Menu[]> => {
+      console.log('useMenus: Fetching menus with options:', options);
+      
       const menusRef = collection(db, 'menus');
       let q = query(menusRef, orderBy('updatedAt', 'desc'));
       
@@ -31,6 +33,8 @@ export function useMenus(options: UseMenusOptions = {}) {
         ...doc.data()
       })) as Menu[];
       
+      console.log('useMenus: Found', menus.length, 'menus');
+      
       // Client-side filtering for tastes and search
       if (options.tastes && options.tastes.length > 0) {
         menus = menus.filter(menu => 
@@ -46,6 +50,7 @@ export function useMenus(options: UseMenusOptions = {}) {
         );
       }
       
+      console.log('useMenus: Returning', menus.length, 'menus after filtering');
       return menus;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes

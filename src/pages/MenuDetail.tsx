@@ -7,15 +7,20 @@ import { LOCATIONS, CATEGORIES, TASTES, COOKING_METHODS, FACULTIES } from '../co
 import { calcHealthScore, getHealthScoreLabel } from '../utils/healthScore';
 import HealthBadge from '../components/HealthBadge';
 import { useLogs } from '../hooks/useLogs';
+import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 import type { Menu } from '../types/menu';
 
 export default function MenuDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [selectedFaculty, setSelectedFaculty] = useState('');
+  const { user, userProfile } = useAuth();
+  const [selectedFaculty, setSelectedFaculty] = useState(userProfile?.faculty || '');
   const [visibility, setVisibility] = useState<'public' | 'private'>('public');
-  
+  const [quantity, setQuantity] = useState(1);
+
   const { createLog } = useLogs();
+  const { showNotification } = useNotification();
 
   const { data: menu, isLoading, error } = useQuery({
     queryKey: ['menu', id],
@@ -30,24 +35,71 @@ export default function MenuDetail() {
     enabled: !!id,
   });
 
-  const handleLogMeal = async () => {
+    const handleLogMeal = async () => {
     if (!menu || !selectedFaculty) return;
-    
+
     try {
       await createLog.mutateAsync({
         menuId: menu.id,
         faculty: selectedFaculty,
-        visibility
+        visibility,
+        quantity
       });
-      
-      // Show success message
-      alert('บันทึกการกินสำเร็จ! 🎉');
+
+      // Show success notification
+      showNotification({
+        type: 'success',
+        title: 'บันทึกสำเร็จ! 🎉',
+        message: `บันทึกการกิน "${menu.name}" แล้ว`,
+        duration: 3000
+      });
+
+      // Check for achievements
+      const healthScore = calcHealthScore(menu);
+      if (healthScore >= 80) {
+        setTimeout(() => {
+          showNotification({
+            type: 'achievement',
+            title: '🏆 เก่งมาก!',
+            message: 'คุณเลือกเมนูที่มีประโยชน์ต่อสุขภาพมาก',
+            duration: 5000
+          });
+        }, 1000);
+      }
+
       navigate('/me');
     } catch (error) {
       console.error('Error logging meal:', error);
-      alert('เกิดข้อผิดพลาดในการบันทึก');
+      showNotification({
+        type: 'warning',
+        title: 'เกิดข้อผิดพลาด',
+        message: 'ไม่สามารถบันทึกการกินได้ กรุณาลองใหม่อีกครั้ง',
+        duration: 5000
+      });
     }
   };
+
+  // Show login prompt if not authenticated
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-4">
+            ต้องเข้าสู่ระบบก่อน
+          </h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">
+            กรุณาเข้าสู่ระบบเพื่อบันทึกการกินเมนูนี้
+          </p>
+          <button
+            onClick={() => navigate('/')}
+            className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg transition-colors"
+          >
+            กลับไปหน้าแรก
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -209,34 +261,59 @@ export default function MenuDetail() {
                 </select>
               </div>
 
-              {/* Visibility Toggle */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  การแสดงผล
-                </label>
-                <div className="flex space-x-4">
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      value="public"
-                      checked={visibility === 'public'}
-                      onChange={(e) => setVisibility(e.target.value as 'public' | 'private')}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">สาธารณะ (รวมในสถิติ)</span>
-                  </label>
-                  <label className="flex items-center">
-                    <input
-                      type="radio"
-                      value="private"
-                      checked={visibility === 'private'}
-                      onChange={(e) => setVisibility(e.target.value as 'public' | 'private')}
-                      className="mr-2"
-                    />
-                    <span className="text-sm">ส่วนตัว</span>
-                  </label>
-                </div>
-              </div>
+                             {/* Quantity Selection */}
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   จำนวนที่สั่ง
+                 </label>
+                 <div className="flex items-center space-x-4">
+                   <button
+                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                     className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-gray-600"
+                   >
+                     -
+                   </button>
+                   <span className="text-lg font-semibold text-gray-800 w-8 text-center">
+                     {quantity}
+                   </span>
+                   <button
+                     onClick={() => setQuantity(quantity + 1)}
+                     className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center text-gray-600"
+                   >
+                     +
+                   </button>
+                   <span className="text-sm text-gray-600">จาน</span>
+                 </div>
+               </div>
+
+               {/* Visibility Toggle */}
+               <div>
+                 <label className="block text-sm font-medium text-gray-700 mb-2">
+                   การแสดงผล
+                 </label>
+                 <div className="flex space-x-4">
+                   <label className="flex items-center">
+                     <input
+                       type="radio"
+                       value="public"
+                       checked={visibility === 'public'}
+                       onChange={(e) => setVisibility(e.target.value as 'public' | 'private')}
+                       className="mr-2"
+                     />
+                     <span className="text-sm">สาธารณะ (รวมในสถิติ)</span>
+                   </label>
+                   <label className="flex items-center">
+                     <input
+                       type="radio"
+                       value="private"
+                       checked={visibility === 'private'}
+                       onChange={(e) => setVisibility(e.target.value as 'public' | 'private')}
+                       className="mr-2"
+                     />
+                     <span className="text-sm">ส่วนตัว</span>
+                   </label>
+                 </div>
+               </div>
 
               {/* Log Button */}
               <button

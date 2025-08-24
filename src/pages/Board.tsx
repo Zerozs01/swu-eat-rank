@@ -3,10 +3,12 @@ import { useTodayLogs } from '../hooks/useLogs';
 import { useMenus } from '../hooks/useMenus';
 import { LOCATIONS, CATEGORIES, FACULTIES } from '../constants/enums';
 import MenuCard from '../components/MenuCard';
+import { useAuth } from '../contexts/AuthContext';
 import type { Location, Category } from '../types/menu';
 
 export default function Board() {
-  const [selectedFaculty, setSelectedFaculty] = useState('');
+  const { userProfile } = useAuth();
+  const [selectedFaculty, setSelectedFaculty] = useState(userProfile?.faculty || '');
   const [selectedLocation, setSelectedLocation] = useState<Location | ''>('');
   const [selectedCategory, setSelectedCategory] = useState<Category | ''>('');
 
@@ -65,14 +67,14 @@ export default function Board() {
   const isLoading = logsLoading || menusLoading;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-6">
+        <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-6">
           📊 กระดานรวม
         </h1>
         
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
             เมนูยอดฮิตวันนี้
           </h2>
           
@@ -136,8 +138,8 @@ export default function Board() {
           )}
         </div>
         
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">
             เมนูเฮลธ์สุดวันนี้
           </h2>
           

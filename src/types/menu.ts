@@ -31,7 +31,8 @@ export interface Log {
   menuId: string;
   faculty: string; // ตัวอักษรไทยได้ เช่น "วิศวะ"
   visibility: 'public' | 'private';
-  at: number;
+  quantity: number; // จำนวนที่สั่ง
+  at: number; // timestamp
 }
 
 export interface User {
