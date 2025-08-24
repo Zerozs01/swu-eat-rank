@@ -36,6 +36,10 @@ export interface Log {
 
 export interface User {
   id: string;
+  email?: string;
+  displayName?: string;
   faculty?: string;
   displayAnon?: boolean;
+  createdAt: number;
+  lastLoginAt: number;
 }

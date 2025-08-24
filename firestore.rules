@@ -16,7 +16,7 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.visibility in ['public','private'];
       allow read: if isSignedIn()
-        && resource.data.userId == request.auth.uid; // อ่านได้เฉพาะของตัวเอง
+        && (resource.data.userId == request.auth.uid || resource.data.visibility == 'public');
       allow update, delete: if false; // v1: ไม่แก้ไขภายหลัง
     }
 

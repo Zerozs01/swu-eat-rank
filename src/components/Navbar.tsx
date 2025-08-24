@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
+import { useAuth } from '../contexts/AuthContext';
+import LoginModal from './LoginModal';
 import { 
   HomeIcon, 
   SearchIcon, 
@@ -14,7 +16,9 @@ import {
 export default function Navbar() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const { user, userProfile, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -68,17 +72,35 @@ export default function Navbar() {
               <span>กระดานรวม</span>
             </Link>
             
-            <Link
-              to="/me"
-              className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/me')
-                  ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
-                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
-            >
-              <UserIcon className="w-4 h-4" />
-              <span>ฉัน</span>
-            </Link>
+            {user ? (
+              <>
+                <Link
+                  to="/me"
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                    isActive('/me')
+                      ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  <UserIcon className="w-4 h-4" />
+                  <span>{userProfile?.displayName || 'ฉัน'}</span>
+                </Link>
+
+                <button
+                  onClick={logout}
+                  className="px-3 py-2 rounded-md text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  ออกจากระบบ
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="px-3 py-2 rounded-md text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors"
+              >
+                เข้าสู่ระบบ
+              </button>
+            )}
 
             {/* Theme Toggle */}
             <button
@@ -171,6 +193,12 @@ export default function Navbar() {
             </div>
           </div>
         )}
+
+        {/* Login Modal */}
+        <LoginModal 
+          isOpen={isLoginModalOpen} 
+          onClose={() => setIsLoginModalOpen(false)} 
+        />
       </div>
     </nav>
   );
