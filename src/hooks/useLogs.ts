@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { collection, addDoc, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Log } from '../types/menu';
@@ -204,6 +204,28 @@ export function useDeleteLog() {
       // Invalidate and refetch user logs
       queryClient.invalidateQueries({ queryKey: ['userLogs'] });
       queryClient.invalidateQueries({ queryKey: ['todayLogs'] });
+    },
+  });
+}
+
+// Update log mutation
+export function useUpdateLog() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async ({ logId, visibility }: { logId: string; visibility: 'public' | 'private' }) => {
+      if (!user) throw new Error('User not authenticated');
+      
+      const logRef = doc(db, 'logs', logId);
+      await updateDoc(logRef, { visibility });
+      return { logId, visibility };
+    },
+    onSuccess: () => {
+      // Invalidate and refetch logs
+      queryClient.invalidateQueries({ queryKey: ['userLogs'] });
+      queryClient.invalidateQueries({ queryKey: ['todayLogs'] });
+      queryClient.invalidateQueries({ queryKey: ['logsByPeriod'] });
     },
   });
 }

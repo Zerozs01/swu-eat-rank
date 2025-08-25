@@ -15,6 +15,7 @@ export default function Me() {
   const { data: userLogs, isLoading, error: logsError } = useUserLogs();
   const { data: allMenus, error: menusError } = useMenus();
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all'>('today');
+  const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'private'>('all');
 
   // Filter logs by time period
   const filteredLogsWithMenus = useMemo(() => {
@@ -38,36 +39,45 @@ export default function Me() {
     const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     const monthAgo = new Date(today.getFullYear(), now.getMonth() - 1, now.getDate());
     
-    let filtered = combined;
-    switch (timeFilter) {
-      case 'today':
-        filtered = combined.filter(log => log.at >= today.getTime());
-        break;
-      case 'week':
-        filtered = combined.filter(log => log.at >= weekAgo.getTime());
-        break;
-      case 'month':
-        filtered = combined.filter(log => log.at >= monthAgo.getTime());
-        break;
-      case 'all':
-      default:
-        filtered = combined;
-        break;
-    }
-    
-    console.log('Me: Filtered logs with menus:', filtered.length, 'filter:', timeFilter);
-    return filtered;
-  }, [userLogs, allMenus, timeFilter]);
+         let filtered = combined;
+     switch (timeFilter) {
+       case 'today':
+         filtered = combined.filter(log => log.at >= today.getTime());
+         break;
+       case 'week':
+         filtered = combined.filter(log => log.at >= weekAgo.getTime());
+         break;
+       case 'month':
+         filtered = combined.filter(log => log.at >= monthAgo.getTime());
+         break;
+       case 'all':
+       default:
+         filtered = combined;
+         break;
+     }
+     
+     // Apply visibility filter
+     if (visibilityFilter !== 'all') {
+       filtered = filtered.filter(log => log.visibility === visibilityFilter);
+     }
+     
+     console.log('Me: Filtered logs with menus:', filtered.length, 'filter:', timeFilter, 'visibility:', visibilityFilter);
+     return filtered;
+   }, [userLogs, allMenus, timeFilter, visibilityFilter]);
 
   // Calculate health statistics
   const healthStats = useMemo(() => {
-    if (!filteredLogsWithMenus.length) return { avgScore: 0, totalMeals: 0, totalQuantity: 0, streakDays: 0 };
+    if (!filteredLogsWithMenus.length) return { avgScore: 0, totalMeals: 0, totalQuantity: 0, streakDays: 0, publicLogs: 0, privateLogs: 0 };
 
     const scores = filteredLogsWithMenus.map(log => calcHealthScore(log.menu));
     const avgScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
     
     const totalMeals = filteredLogsWithMenus.length;
     const totalQuantity = filteredLogsWithMenus.reduce((sum, log) => sum + log.quantity, 0);
+    
+    // Calculate visibility stats
+    const publicLogs = filteredLogsWithMenus.filter(log => log.visibility === 'public').length;
+    const privateLogs = filteredLogsWithMenus.filter(log => log.visibility === 'private').length;
     
     // Calculate streak (simplified - just count consecutive days with logs)
     const today = new Date();
@@ -77,7 +87,7 @@ export default function Me() {
     const recentLogs = filteredLogsWithMenus.filter(log => log.at >= todayStart - (7 * 24 * 60 * 60 * 1000)); // Last 7 days
     const streakDays = recentLogs.length > 0 ? Math.min(recentLogs.length, 7) : 0;
 
-    return { avgScore, totalMeals, totalQuantity, streakDays };
+    return { avgScore, totalMeals, totalQuantity, streakDays, publicLogs, privateLogs };
   }, [filteredLogsWithMenus]);
 
   // Calculate badges
@@ -187,10 +197,20 @@ export default function Me() {
                    <span className="text-lg font-semibold text-indigo-600">{healthStats.totalQuantity}</span>
                  </div>
                 
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">วันติดต่อกัน:</span>
-                  <span className="text-lg font-semibold text-purple-600">{healthStats.streakDays}</span>
-                </div>
+                                 <div className="flex justify-between items-center">
+                   <span className="text-gray-600">วันติดต่อกัน:</span>
+                   <span className="text-lg font-semibold text-purple-600">{healthStats.streakDays}</span>
+                 </div>
+                 
+                 <div className="flex justify-between items-center">
+                   <span className="text-gray-600">ข้อมูลสาธารณะ:</span>
+                   <span className="text-lg font-semibold text-green-600">{healthStats.publicLogs}</span>
+                 </div>
+                 
+                 <div className="flex justify-between items-center">
+                   <span className="text-gray-600">ข้อมูลส่วนตัว:</span>
+                   <span className="text-lg font-semibold text-gray-600">{healthStats.privateLogs}</span>
+                 </div>
               </div>
             )}
           </div>
@@ -235,48 +255,85 @@ export default function Me() {
                ประวัติการกิน
              </h2>
              
-             {/* Time Filter */}
-             <div className="flex space-x-2">
-               <button
-                 onClick={() => setTimeFilter('today')}
-                 className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                   timeFilter === 'today'
-                     ? 'bg-blue-600 text-white'
-                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                 }`}
-               >
-                 วันนี้
-               </button>
-               <button
-                 onClick={() => setTimeFilter('week')}
-                 className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                   timeFilter === 'week'
-                     ? 'bg-blue-600 text-white'
-                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                 }`}
-               >
-                 สัปดาห์
-               </button>
-               <button
-                 onClick={() => setTimeFilter('month')}
-                 className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                   timeFilter === 'month'
-                     ? 'bg-blue-600 text-white'
-                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                 }`}
-               >
-                 เดือน
-               </button>
-               <button
-                 onClick={() => setTimeFilter('all')}
-                 className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                   timeFilter === 'all'
-                     ? 'bg-blue-600 text-white'
-                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                 }`}
-               >
-                 ทั้งหมด
-               </button>
+             {/* Filters */}
+             <div className="flex flex-col sm:flex-row gap-2">
+               {/* Time Filter */}
+               <div className="flex space-x-2">
+                 <button
+                   onClick={() => setTimeFilter('today')}
+                   className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                     timeFilter === 'today'
+                       ? 'bg-blue-600 text-white'
+                       : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                   }`}
+                 >
+                   วันนี้
+                 </button>
+                 <button
+                   onClick={() => setTimeFilter('week')}
+                   className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                     timeFilter === 'week'
+                       ? 'bg-blue-600 text-white'
+                       : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                   }`}
+                 >
+                   สัปดาห์
+                 </button>
+                 <button
+                   onClick={() => setTimeFilter('month')}
+                   className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                     timeFilter === 'month'
+                       ? 'bg-blue-600 text-white'
+                       : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                   }`}
+                 >
+                   เดือน
+                 </button>
+                 <button
+                   onClick={() => setTimeFilter('all')}
+                   className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                     timeFilter === 'all'
+                       ? 'bg-blue-600 text-white'
+                       : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                   }`}
+                 >
+                   ทั้งหมด
+                 </button>
+               </div>
+               
+               {/* Visibility Filter */}
+               <div className="flex space-x-2">
+                 <button
+                   onClick={() => setVisibilityFilter('all')}
+                   className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                     visibilityFilter === 'all'
+                       ? 'bg-green-600 text-white'
+                       : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                   }`}
+                 >
+                   ทั้งหมด
+                 </button>
+                 <button
+                   onClick={() => setVisibilityFilter('public')}
+                   className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                     visibilityFilter === 'public'
+                       ? 'bg-green-600 text-white'
+                       : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                   }`}
+                 >
+                   🌐 สาธารณะ
+                 </button>
+                 <button
+                   onClick={() => setVisibilityFilter('private')}
+                   className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                     visibilityFilter === 'private'
+                       ? 'bg-green-600 text-white'
+                       : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                   }`}
+                 >
+                   🔒 ส่วนตัว
+                 </button>
+               </div>
              </div>
            </div>
           

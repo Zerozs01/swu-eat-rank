@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { LOCATIONS, CATEGORIES, TASTES } from '../constants/enums';
 import { calcHealthScore } from '../utils/healthScore';
 import HealthBadge from './HealthBadge';
-import { useDeleteLog } from '../hooks/useLogs';
+import { useDeleteLog, useUpdateLog } from '../hooks/useLogs';
 import { useNotification } from '../contexts/NotificationContext';
 import type { Log, Menu } from '../types/menu';
 
@@ -16,6 +16,7 @@ export default function LogCard({ log, menu }: LogCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const healthScore = calcHealthScore(menu);
   const deleteLog = useDeleteLog();
+  const updateLog = useUpdateLog();
   const { showNotification } = useNotification();
 
   const formatTime = (timestamp: number) => {
@@ -64,6 +65,30 @@ export default function LogCard({ log, menu }: LogCardProps) {
         type: 'warning',
         title: 'เกิดข้อผิดพลาด',
         message: 'ไม่สามารถลบประวัติการกินได้ กรุณาลองใหม่อีกครั้ง',
+        duration: 5000
+      });
+    }
+  };
+
+  const handleToggleVisibility = async () => {
+    const newVisibility = log.visibility === 'public' ? 'private' : 'public';
+    try {
+      await updateLog.mutateAsync({
+        logId: log.id,
+        visibility: newVisibility
+      });
+      showNotification({
+        type: 'success',
+        title: 'อัปเดตสำเร็จ! ✅',
+        message: `เปลี่ยนสถานะเป็น ${newVisibility === 'public' ? 'สาธารณะ' : 'ส่วนตัว'} แล้ว`,
+        duration: 3000
+      });
+    } catch (error) {
+      console.error('Error updating log visibility:', error);
+      showNotification({
+        type: 'warning',
+        title: 'เกิดข้อผิดพลาด',
+        message: 'ไม่สามารถเปลี่ยนสถานะได้ กรุณาลองใหม่อีกครั้ง',
         duration: 5000
       });
     }
@@ -120,6 +145,32 @@ export default function LogCard({ log, menu }: LogCardProps) {
           </span>
         </div>
         <HealthBadge score={healthScore} />
+      </div>
+
+      {/* Visibility Status */}
+      <div className="flex justify-between items-center mb-3">
+        <div className="flex items-center space-x-2">
+          <span className="text-sm text-gray-600 dark:text-gray-300">สถานะ:</span>
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+            log.visibility === 'public' 
+              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+              : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+          }`}>
+            {log.visibility === 'public' ? '🌐 สาธารณะ' : '🔒 ส่วนตัว'}
+          </span>
+        </div>
+        <button
+          onClick={handleToggleVisibility}
+          disabled={updateLog.isPending}
+          className={`px-3 py-1 text-xs rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+            log.visibility === 'public'
+              ? 'bg-orange-100 text-orange-700 hover:bg-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:hover:bg-orange-900/40'
+              : 'bg-blue-100 text-blue-700 hover:bg-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:hover:bg-blue-900/40'
+          }`}
+        >
+          {updateLog.isPending ? 'กำลังเปลี่ยน...' : 
+           log.visibility === 'public' ? 'เปลี่ยนเป็นส่วนตัว' : 'เปลี่ยนเป็นสาธารณะ'}
+        </button>
       </div>
 
              {/* Action Buttons */}
