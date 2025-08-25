@@ -55,15 +55,15 @@ export default function BoardCard({ menu, orderCount, totalQuantity, rank }: Boa
       <div className="flex justify-between items-center mb-3">
         <div className="space-y-1">
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600 dark:text-gray-300">สั่งแล้ว:</span>
-            <span className="font-semibold text-blue-600 dark:text-blue-400">
-              {orderCount} ครั้ง
+            <span className="text-sm text-gray-600 dark:text-gray-300">จำนวนจานรวม:</span>
+            <span className="font-semibold text-blue-600 dark:text-blue-400 text-lg">
+              {totalQuantity} จาน
             </span>
           </div>
           <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600 dark:text-gray-300">จำนวนจาน:</span>
+            <span className="text-sm text-gray-600 dark:text-gray-300">สั่งแล้ว:</span>
             <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-              {totalQuantity} จาน
+              {orderCount} ครั้ง
             </span>
           </div>
         </div>
@@ -74,11 +74,11 @@ export default function BoardCard({ menu, orderCount, totalQuantity, rank }: Boa
       <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
         <div 
           className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
-          style={{ width: `${Math.min((orderCount / 10) * 100, 100)}%` }}
+          style={{ width: `${Math.min((totalQuantity / 20) * 100, 100)}%` }}
         ></div>
       </div>
       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
-        ความนิยม {Math.min((orderCount / 10) * 100, 100).toFixed(0)}%
+        ความนิยม {Math.min((totalQuantity / 20) * 100, 100).toFixed(0)}%
       </p>
     </div>
   );

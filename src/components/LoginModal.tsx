@@ -183,7 +183,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             <span>เข้าสู่ระบบด้วย Google</span>
           </button>
 
-          <button
+          {/*<button
             onClick={handleAnonymousSignIn}
             disabled={isLoading}
             className="w-full bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center space-x-2"
@@ -191,6 +191,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             <UserIcon className="w-4 h-4" />
             <span>เข้าสู่ระบบแบบไม่ระบุตัวตน</span>
           </button>
+          */}
         </div>
 
         <div className="mt-6 text-center">

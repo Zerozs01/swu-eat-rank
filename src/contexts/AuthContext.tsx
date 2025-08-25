@@ -128,6 +128,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         setUserProfile(null);
+        // Auto sign in anonymously if no user is signed in
+        try {
+          console.log('No user found, auto-signing in anonymously...');
+          await signInAnon();
+        } catch (error) {
+          console.error('Failed to auto-sign in anonymously:', error);
+        }
       }
       
       setLoading(false);

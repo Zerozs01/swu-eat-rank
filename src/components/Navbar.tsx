@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -19,6 +19,18 @@ export default function Navbar() {
   const { user, userProfile, logout } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  // Listen for custom event to open login modal
+  useEffect(() => {
+    const handleOpenLoginModal = () => {
+      setIsLoginModalOpen(true);
+    };
+
+    window.addEventListener('openLoginModal', handleOpenLoginModal);
+    return () => {
+      window.removeEventListener('openLoginModal', handleOpenLoginModal);
+    };
+  }, []);
 
   const isActive = (path: string) => {
     return location.pathname === path;
@@ -72,7 +84,7 @@ export default function Navbar() {
               <span>กระดานรวม</span>
             </Link>
             
-            {user ? (
+            {user && userProfile?.email ? (
               <>
                 <Link
                   to="/me"
@@ -83,7 +95,7 @@ export default function Navbar() {
                   }`}
                 >
                   <UserIcon className="w-4 h-4" />
-                  <span>{userProfile?.displayName || 'ฉัน'}</span>
+                  <span>{userProfile.displayName || 'ฉัน'}</span>
                 </Link>
 
                 <button
@@ -131,6 +143,7 @@ export default function Navbar() {
             <button 
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white focus:outline-none"
+              aria-label="เปิดเมนูมือถือ"
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />

@@ -27,34 +27,34 @@ export default function Board() {
       filteredLogs = periodLogs.filter(log => log.faculty === selectedFaculty);
     }
 
-    // Calculate menu statistics
-    const menuStats = filteredLogs.reduce((acc, log) => {
-      if (!acc[log.menuId]) {
-        acc[log.menuId] = {
-          orderCount: 0,
-          totalQuantity: 0,
-          logs: []
-        };
-      }
-      acc[log.menuId].orderCount += 1;
-      acc[log.menuId].totalQuantity += log.quantity;
-      acc[log.menuId].logs.push(log);
-      return acc;
-    }, {} as Record<string, { orderCount: number; totalQuantity: number; logs: any[] }>);
+                  // Calculate menu statistics
+      const menuStats = filteredLogs.reduce((acc, log) => {
+        if (!acc[log.menuId]) {
+          acc[log.menuId] = {
+            orderCount: 0,
+            totalQuantity: 0,
+            logs: []
+          };
+        }
+        acc[log.menuId].orderCount += 1;
+        acc[log.menuId].totalQuantity += (log.quantity || 1); // Default to 1 if quantity is missing
+        acc[log.menuId].logs.push(log);
+        return acc;
+      }, {} as Record<string, { orderCount: number; totalQuantity: number; logs: unknown[] }>);
 
-    // Get menu details and sort by order count
-    const popularMenuIds = Object.entries(menuStats)
-      .sort(([, a], [, b]) => b.orderCount - a.orderCount)
-      .slice(0, 10)
-      .map(([menuId]) => menuId);
+         // Get menu details and sort by total quantity (จำนวนจานรวม)
+     const popularMenuIds = Object.entries(menuStats)
+       .sort(([, a], [, b]) => b.totalQuantity - a.totalQuantity)
+       .slice(0, 10)
+       .map(([menuId]) => menuId);
 
-    return allMenus
-      .filter(menu => popularMenuIds.includes(menu.id))
-      .map(menu => ({
-        menu,
-        stats: menuStats[menu.id]
-      }))
-      .sort((a, b) => b.stats.orderCount - a.stats.orderCount);
+     return allMenus
+       .filter(menu => popularMenuIds.includes(menu.id))
+       .map(menu => ({
+         menu,
+         stats: menuStats[menu.id]
+       }))
+       .sort((a, b) => b.stats.totalQuantity - a.stats.totalQuantity);
   }, [periodLogs, allMenus, selectedFaculty]);
 
   // Calculate healthy menus with order data
@@ -76,20 +76,20 @@ export default function Board() {
       });
     }
 
-    // Calculate menu statistics for healthy menus
-    const menuStats = filteredLogs.reduce((acc, log) => {
-      if (!acc[log.menuId]) {
-        acc[log.menuId] = {
-          orderCount: 0,
-          totalQuantity: 0,
-          logs: []
-        };
-      }
-      acc[log.menuId].orderCount += 1;
-      acc[log.menuId].totalQuantity += log.quantity;
-      acc[log.menuId].logs.push(log);
-      return acc;
-    }, {} as Record<string, { orderCount: number; totalQuantity: number; logs: any[] }>);
+         // Calculate menu statistics for healthy menus
+     const menuStats = filteredLogs.reduce((acc, log) => {
+       if (!acc[log.menuId]) {
+         acc[log.menuId] = {
+           orderCount: 0,
+           totalQuantity: 0,
+           logs: []
+         };
+       }
+       acc[log.menuId].orderCount += 1;
+       acc[log.menuId].totalQuantity += (log.quantity || 1); // Default to 1 if quantity is missing
+       acc[log.menuId].logs.push(log);
+       return acc;
+     }, {} as Record<string, { orderCount: number; totalQuantity: number; logs: unknown[] }>);
 
     // Get menus that have been ordered and sort by health score first, then by order count
     return allMenus

@@ -116,8 +116,8 @@ export default function Me() {
     ];
   }, [healthStats]);
 
-  // Show login prompt if not authenticated
-  if (!user) {
+  // Show login prompt if not authenticated or anonymous user
+  if (!user || !userProfile?.email) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
@@ -125,7 +125,7 @@ export default function Me() {
             ต้องเข้าสู่ระบบก่อน
           </h2>
           <p className="text-gray-600 dark:text-gray-300 mb-6">
-            กรุณาเข้าสู่ระบบเพื่อดูประวัติการกิน
+            กรุณาเข้าสู่ระบบด้วยอีเมลเพื่อดูประวัติการกินและบันทึกข้อมูลส่วนตัว
           </p>
           <button
             onClick={() => window.location.href = '/'}
