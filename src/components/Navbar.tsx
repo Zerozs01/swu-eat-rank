@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useAdminAuth } from '../hooks/useAdminAuth';
 import LoginModal from './LoginModal';
 import { 
   HomeIcon, 
@@ -17,6 +18,7 @@ export default function Navbar() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const { user, userProfile, logout } = useAuth();
+  const { isAdmin } = useAdminAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
@@ -82,6 +84,18 @@ export default function Navbar() {
             >
               <ChartIcon className="w-4 h-4" />
               <span>กระดานรวม</span>
+            </Link>
+            
+            <Link
+              to="/admin"
+              className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                isActive('/admin')
+                  ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
+                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+            >
+              <span>🔧</span>
+              <span>Admin</span>
             </Link>
             
             {user && userProfile?.email ? (
@@ -190,6 +204,18 @@ export default function Navbar() {
               >
                 <ChartIcon className="w-4 h-4" />
                 <span>กระดานรวม</span>
+              </Link>
+              
+              <Link
+                to="/admin"
+                className={`flex items-center space-x-2 block px-3 py-2 rounded-md text-base font-medium ${
+                  isActive('/admin')
+                    ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
+                    : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                <span>🔧</span>
+                <span>Admin</span>
               </Link>
               
               <Link

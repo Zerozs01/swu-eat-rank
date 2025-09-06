@@ -10,6 +10,8 @@ import Search from './pages/Search';
 import MenuDetail from './pages/MenuDetail';
 import Board from './pages/Board';
 import Me from './pages/Me';
+import Admin from './pages/Admin';
+import AdminUsers from './pages/AdminUsers';
 
 // Create a client
 const queryClient = new QueryClient();
@@ -25,6 +27,8 @@ function AppContent() {
           <Route path="/menu/:id" element={<MenuDetail />} />
           <Route path="/board" element={<Board />} />
           <Route path="/me" element={<Me />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
         </Routes>
       </div>
     </Router>

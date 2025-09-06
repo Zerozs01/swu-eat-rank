@@ -379,6 +379,23 @@ cd swu-eat-rank
 npm install
 ```
 
+### Environment Setup
+1. คัดลอกไฟล์ `env.example` เป็น `.env`:
+```bash
+cp env.example .env
+```
+
+2. แก้ไขค่าใน `.env` ให้ตรงกับ Firebase project ของคุณ:
+```env
+VITE_FB_API_KEY=your_api_key_here
+VITE_FB_AUTH_DOMAIN=your_project_id.firebaseapp.com
+VITE_FB_PROJECT_ID=your_project_id
+VITE_FB_STORAGE_BUCKET=your_project_id.appspot.com
+VITE_FB_MESSAGING_SENDER_ID=your_sender_id
+VITE_FB_APP_ID=your_app_id
+VITE_FB_MEASUREMENT_ID=your_measurement_id
+```
+
 ### Development
 ```bash
 npm run dev

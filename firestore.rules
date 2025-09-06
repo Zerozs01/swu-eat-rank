@@ -8,22 +8,22 @@ service cloud.firestore {
 
     match /menus/{id} {
       allow read: if true;       // public
-      allow write: if false;     // seed เสร็จแล้ว ปิดการเขียน
+      allow write: if true;      // อนุญาตการเขียนสำหรับ seed
     }
 
-          match /logs/{id} {
-        allow create: if isSignedIn()
-          && request.resource.data.userId == request.auth.uid
-          && request.resource.data.visibility in ['public','private'];
-        allow read: if isSignedIn()
-          && (resource.data.userId == request.auth.uid || resource.data.visibility == 'public');
-        allow update: if isSignedIn()
-          && resource.data.userId == request.auth.uid
-          && request.resource.data.visibility in ['public','private']
-          && request.resource.data.userId == resource.data.userId; // เจ้าของเท่านั้นที่แก้ไขได้
-        allow delete: if isSignedIn()
-          && resource.data.userId == request.auth.uid; // ให้ลบได้เฉพาะของตัวเอง
-      }
+    match /logs/{id} {
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.visibility in ['public','private'];
+      allow read: if isSignedIn()
+        && (resource.data.userId == request.auth.uid || resource.data.visibility == 'public');
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.visibility in ['public','private']
+        && request.resource.data.userId == resource.data.userId; // เจ้าของเท่านั้นที่แก้ไขได้
+      allow delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid; // ให้ลบได้เฉพาะของตัวเอง
+    }
 
     match /users/{id} {
       allow read, write: if isSignedIn() && request.auth.uid == id;
@@ -33,6 +33,18 @@ service cloud.firestore {
     match /aggregates/{id} {
       allow read: if true;
       allow write: if false;
+    }
+
+    // admin users: เฉพาะ owner เท่านั้นที่จัดการได้
+    match /adminUsers/{email} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.token.email == 'auandmaxma@gmail.com';
+    }
+
+    // admin whitelist: เฉพาะ owner เท่านั้นที่จัดการได้
+    match /admin/{id} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.token.email == 'auandmaxma@gmail.com';
     }
   }
 }

@@ -60,7 +60,25 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "visibility", "mode": "ASCENDING" },
-        { "fieldPath": "at", "mode": "ASCENDING" }
+        { "fieldPath": "at", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "visibility", "mode": "ASCENDING" },
+        { "fieldPath": "faculty", "mode": "ASCENDING" },
+        { "fieldPath": "at", "mode": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "logs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "visibility", "mode": "ASCENDING" },
+        { "fieldPath": "menuId", "mode": "ASCENDING" },
+        { "fieldPath": "at", "mode": "DESCENDING" }
       ]
     }
   ],
