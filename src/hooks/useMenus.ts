@@ -11,7 +11,7 @@ interface UseMenusOptions {
 }
 
 export function useMenus(options: UseMenusOptions = {}) {
-  return useQuery({
+  const queryResult = useQuery({
     queryKey: ['menus', options],
     queryFn: async (): Promise<Menu[]> => {
       console.log('useMenus: Fetching menus with options:', options);
@@ -60,4 +60,9 @@ export function useMenus(options: UseMenusOptions = {}) {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  return {
+    ...queryResult,
+    menus: queryResult.data
+  };
 }

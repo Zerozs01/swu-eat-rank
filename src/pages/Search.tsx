@@ -22,7 +22,7 @@ export default function Search() {
     }
   }, [location.state]);
 
-  const { data: menus, isLoading, error } = useMenus({
+  const { menus, isLoading, error } = useMenus({
     location: selectedLocation || undefined,
     category: selectedCategory || undefined,
     tastes: selectedTaste ? [selectedTaste] : undefined,

@@ -210,14 +210,22 @@ export default function Admin() {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
               🍽️ Admin - เพิ่มเมนูใหม่
             </h1>
-            {isOwner && (
+            <div className="flex gap-3">
               <Link
-                to="/admin/users"
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                to="/admin/menus"
+                className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
               >
-                จัดการ Admin Users
+                📋 จัดการเมนู
               </Link>
-            )}
+              {isOwner && (
+                <Link
+                  to="/admin/users"
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  👥 จัดการ Admin Users
+                </Link>
+              )}
+            </div>
           </div>
 
           {message && (

@@ -15,7 +15,7 @@ export default function Board() {
 
   const { isLoading: logsLoading } = useTodayLogs();
   const { data: periodLogs, isLoading: periodLogsLoading } = useLogsByPeriod(timeFilter);
-  const { data: allMenus, isLoading: menusLoading } = useMenus();
+  const { menus: allMenus, isLoading: menusLoading } = useMenus();
 
   // Calculate popular menus with detailed stats
   const popularMenus = useMemo(() => {

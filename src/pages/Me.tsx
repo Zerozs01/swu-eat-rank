@@ -13,7 +13,7 @@ interface LogWithMenu extends Log {
 export default function Me() {
   const { user, userProfile } = useAuth();
   const { data: userLogs, isLoading, error: logsError } = useUserLogs();
-  const { data: allMenus, error: menusError } = useMenus();
+  const { menus: allMenus, error: menusError } = useMenus();
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all'>('today');
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'private'>('all');
 

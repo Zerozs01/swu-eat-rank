@@ -12,7 +12,7 @@ export default function Home() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isRandomizing, setIsRandomizing] = useState(false);
   
-  const { data: menus } = useMenus();
+  const { menus } = useMenus();
 
   const handleRandomMenu = () => {
     if (!menus || menus.length === 0) return;

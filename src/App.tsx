@@ -12,6 +12,8 @@ import Board from './pages/Board';
 import Me from './pages/Me';
 import Admin from './pages/Admin';
 import AdminUsers from './pages/AdminUsers';
+import EditMenu from './pages/EditMenu';
+import ManageMenus from './pages/ManageMenus';
 
 // Create a client
 const queryClient = new QueryClient();
@@ -27,8 +29,10 @@ function AppContent() {
           <Route path="/menu/:id" element={<MenuDetail />} />
           <Route path="/board" element={<Board />} />
           <Route path="/me" element={<Me />} />
-          <Route path="/admin" element={<Admin />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin" element={<Admin />} />
+            <Route path="/admin/users" element={<AdminUsers />} />
+            <Route path="/admin/menus" element={<ManageMenus />} />
+            <Route path="/admin/edit/:id" element={<EditMenu />} />
         </Routes>
       </div>
     </Router>
