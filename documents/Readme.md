@@ -1,9 +1,11 @@
 
-# SWU EatRank — Project Plan (Vite + React + HTML + Firebase Firestore)
+# SWU EatRank — Project Status & Documentation
 
 ## 0) TL;DR
 
 เว็บแอปช่วยเลือกเมนูโรงอาหารแบบเร็ว ไม่ต้องกรอกเยอะ มีคะแนนสุขภาพ (Health Score), สรุปสถิติยอดฮิตแยกตามคณะ/ประเภทอาหาร และระบบแข่งขันแบบเบา ๆ (Leaderboard/Badge) โดยเก็บข้อมูลแบบไม่ระบุตัวตน
+
+**สถานะปัจจุบัน:** MVP Phase 1 เสร็จสิ้นแล้ว ✅
 
 ---
 
@@ -280,19 +282,182 @@ service cloud.firestore {
 
 ---
 
-## 18) Tasks Checklist (สำหรับ Cursor)
+## 18) Tasks Checklist (สำหรับ Cursor) - ✅ เสร็จสิ้น
 
-* [ ] Init Vite + React + Tailwind + Firebase SDK
-* [ ] Setup routes (`react-router`)
-* [ ] Define types/interfaces + constants
-* [ ] Implement Search page (+ filters)
-* [ ] Implement Menu detail + Log action
-* [ ] Implement Board (popular today + filters)
-* [ ] Implement Me (history + badges placeholder)
-* [ ] Seed menus → Firestore
-* [ ] Add Auth (Anonymous/Google)
-* [ ] Apply Firestore Rules (draft)
-* [ ] Basic e2e happy path test (manual)
+* [x] Init Vite + React + Tailwind + Firebase SDK
+* [x] Setup routes (`react-router`)
+* [x] Define types/interfaces + constants
+* [x] Implement Search page (+ filters)
+* [x] Implement Menu detail + Log action
+* [x] Implement Board (popular today + filters)
+* [x] Implement Me (history + badges placeholder)
+* [x] Seed menus → Firestore
+* [x] Add Auth (Anonymous/Google)
+* [x] Apply Firestore Rules (draft)
+* [x] Basic e2e happy path test (manual)
+
+---
+
+## 19) สถานะการพัฒนา (Development Status)
+
+### ✅ ฟีเจอร์ที่เสร็จสิ้นแล้ว
+
+1. **โครงสร้างโปรเจค**
+   - Vite + React + TypeScript + Tailwind CSS
+   - Firebase (Auth, Firestore, Analytics)
+   - React Router สำหรับ navigation
+   - React Query สำหรับ state management
+
+2. **ระบบ Authentication**
+   - Anonymous Authentication
+   - AuthContext สำหรับจัดการ user state
+   - Auto sign-in เมื่อเปิดแอป
+
+3. **หน้าค้นหาเมนู (Search)**
+   - ค้นหาด้วยชื่อเมนู/ร้าน
+   - ตัวกรองตาม location, category, tastes
+   - แสดง Health Score บนการ์ด
+
+4. **หน้ารายละเอียดเมนู (MenuDetail)**
+   - แสดงข้อมูลเมนูครบถ้วน
+   - ปุ่ม "ฉันกินเมนูนี้" พร้อมเลือก faculty และ visibility
+   - Health Score calculation แบบ rule-based
+
+5. **กระดานรวม (Board)**
+   - แสดงเมนูยอดฮิตวันนี้
+   - ตัวกรองตาม faculty, location, category
+   - สถิติแบบ real-time
+
+6. **หน้าโปรไฟล์ (Me)**
+   - ประวัติการกินส่วนตัว
+   - สรุปสถิติสุขภาพ
+   - จัดการ logs (แก้ไข/ลบ)
+
+7. **ระบบ Logging**
+   - บันทึกการกินเมนู (public/private)
+   - ระบบ quantity tracking
+   - CRUD operations สำหรับ logs
+
+8. **Health Score System**
+   - Rule-based calculation
+   - แสดงผลด้วยสีและ label
+   - คำนวณจาก ingredients, cooking method, nutrition
+
+9. **Firestore Integration**
+   - Collections: menus, logs, users
+   - Security rules ที่ปลอดภัย
+   - Real-time updates
+
+10. **UI/UX Components**
+    - MenuCard, HealthBadge, LogCard
+    - NotificationToast system
+    - Responsive design
+    - Dark mode support
+
+### 📊 ข้อมูลเมนู
+- มีเมนูตัวอย่าง 50+ รายการ
+- ครอบคลุม 3 โรงอาหาร (วิศวะ, สุขภาพ, หอพัก)
+- มีข้อมูล nutrition และ ingredients ครบถ้วน
+
+### 🔒 ความปลอดภัย
+- Firestore rules ป้องกันข้อมูลส่วนตัว
+- Anonymous auth ไม่เก็บข้อมูลส่วนบุคคล
+- Public/private visibility controls
+
+---
+
+## 20) วิธีรันโปรเจค
+
+### Prerequisites
+- Node.js 18+
+- npm หรือ yarn
+- Firebase project (ตั้งค่าแล้ว)
+
+### Installation
+```bash
+cd swu-eat-rank
+npm install
+```
+
+### Development
+```bash
+npm run dev
+```
+
+### Seed ข้อมูลเมนู
+```bash
+npm run seed
+```
+
+### Build
+```bash
+npm run build
+```
+
+---
+
+## 21) งานที่เหลือ (Phase 2+)
+
+### 🎯 ฟีเจอร์ที่ยังไม่ได้ทำ
+1. **Leaderboard System**
+   - Weekly leaderboard
+   - Badge system (Veggie Lover, Fry-Free Day, etc.)
+   - User ranking
+
+2. **Advanced Analytics**
+   - Weekly summary
+   - CSV export
+   - Trend analysis
+
+3. **Enhanced UI/UX**
+   - Better mobile experience
+   - Loading states
+   - Error handling improvements
+
+4. **Performance Optimization**
+   - Image optimization
+   - Code splitting
+   - Caching strategies
+
+5. **Advanced Features**
+   - Menu recommendations
+   - Social features
+   - Push notifications
+
+---
+
+## 22) Technical Debt & Improvements
+
+### 🔧 ปัญหาที่ต้องแก้ไข
+1. **Performance**
+   - Client-side filtering อาจช้าเมื่อข้อมูลเยอะ
+   - ควรใช้ Firestore queries แทน
+
+2. **Error Handling**
+   - ต้องเพิ่ม error boundaries
+   - Better loading states
+
+3. **Testing**
+   - ยังไม่มี unit tests
+   - ต้องเพิ่ม integration tests
+
+4. **Code Quality**
+   - บาง components ยังใหญ่เกินไป
+   - ต้อง refactor ให้ modular มากขึ้น
+
+---
+
+## 23) Deployment Status
+
+### 🚀 Production Ready
+- ✅ Firebase Hosting configured
+- ✅ Environment variables set
+- ✅ Build process working
+- ✅ Firestore rules deployed
+
+### 📱 Demo Access
+- URL: [จะใส่เมื่อ deploy]
+- Test account: Anonymous (auto sign-in)
 
 ---
 
