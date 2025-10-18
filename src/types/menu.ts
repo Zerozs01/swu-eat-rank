@@ -10,6 +10,8 @@ export interface Menu {
   location: Location;
   category: Category;
   tastes: Taste[];
+  imageUrl?: string;    // public download URL for display
+  imagePath?: string;   // storage path for delete/maintenance
   ingredients: {
     veggies?: string[];
     proteins?: string[];

@@ -1,0 +1,26 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner() {
+      return isSignedIn() && request.auth.token.email == 'auandmaxma@gmail.com';
+    }
+
+    // อนุโลม: ให้ผู้ที่ล็อกอินอัปโหลดได้ (แอปรับสิทธิ์ที่ UI ฝั่ง client อยู่แล้ว)
+    // ถ้าต้องการเข้มขึ้น สามารถจำกัดเฉพาะ owner ด้วย isOwner()
+
+    // อนุญาตอ่านสาธารณะ เพื่อให้ client โหลดภาพได้
+    match /{allPaths=**} {
+      allow read: if true;
+    }
+
+    // รูปเมนูอยู่ใต้โฟลเดอร์ menus/
+    match /menus/{menuId}/{fileName} {
+      allow write: if isSignedIn();
+      allow delete: if isSignedIn();
+    }
+  }
+}

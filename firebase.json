@@ -5,6 +5,14 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20",
+    "region": "asia-east1"
+  },
   "hosting": {
     "public": "dist",
     "ignore": [
@@ -13,6 +21,13 @@
       "**/node_modules/**"
     ],
     "rewrites": [
+      {
+        "source": "/api/uploadMenuImage",
+        "function": {
+          "functionId": "uploadMenuImage",
+          "region": "asia-east1"
+        }
+      },
       {
         "source": "**",
         "destination": "/index.html"

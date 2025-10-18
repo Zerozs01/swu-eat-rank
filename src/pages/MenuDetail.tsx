@@ -134,6 +134,14 @@ export default function MenuDetail() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
+        {/* Cover Image */}
+        {menu.imageUrl && (
+          <div className="mb-6 w-full max-w-5xl mx-auto">
+            <div className="w-full aspect-[16/9] bg-gray-100 rounded-lg overflow-hidden">
+              <img src={menu.imageUrl} alt={menu.name} className="w-full h-full object-cover" />
+            </div>
+          </div>
+        )}
         {/* Header */}
         <div className="mb-6">
           <button

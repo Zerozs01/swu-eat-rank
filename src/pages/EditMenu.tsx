@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { doc, getDoc, updateDoc, deleteDoc, deleteField } from 'firebase/firestore';
+import { db, storage, auth } from '../lib/firebase';
+import { ref as storageRef, uploadBytesResumable, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { getIdToken } from 'firebase/auth';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 import type { Menu, Location, Category, Taste, Cooking } from '../types/menu';
 import { LOCATIONS, CATEGORIES, TASTES, COOKING_METHODS } from '../constants/enums';
@@ -29,7 +31,9 @@ export default function EditMenu() {
       fat: 0,
       sugar: 0,
       sodium: 0
-    }
+    },
+    imageUrl: undefined as string | undefined,
+    imagePath: undefined as string | undefined,
   });
 
   const [newVeggie, setNewVeggie] = useState('');
@@ -38,6 +42,8 @@ export default function EditMenu() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   // Load menu data
   useEffect(() => {
@@ -66,7 +72,9 @@ export default function EditMenu() {
               fat: data.nutrition?.fat || 0,
               sugar: data.nutrition?.sugar || 0,
               sodium: data.nutrition?.sodium || 0
-            }
+            },
+            imageUrl: data.imageUrl,
+            imagePath: data.imagePath,
           });
         } else {
           setMessage('❌ ไม่พบเมนูที่ต้องการแก้ไข');
@@ -86,10 +94,20 @@ export default function EditMenu() {
     mutationFn: async (menuData: Omit<Menu, 'id'>) => {
       if (!id) throw new Error('No menu ID');
       const docRef = doc(db, 'menus', id);
-      await updateDoc(docRef, {
-        ...menuData,
-        updatedAt: Date.now()
-      });
+      // Build payload explicitly to avoid passing undefined values
+      const payload = {
+        name: menuData.name,
+        vendor: menuData.vendor,
+        location: menuData.location,
+        category: menuData.category,
+        tastes: menuData.tastes,
+        ingredients: menuData.ingredients,
+        nutrition: menuData.nutrition,
+        ...(menuData.imageUrl ? { imageUrl: menuData.imageUrl } : {}),
+        ...(menuData.imagePath ? { imagePath: menuData.imagePath } : {}),
+        updatedAt: Date.now(),
+      };
+      await updateDoc(docRef, payload);
       return { id, ...menuData };
     },
     onSuccess: () => {
@@ -107,6 +125,11 @@ export default function EditMenu() {
     mutationFn: async () => {
       if (!id) throw new Error('No menu ID');
       const docRef = doc(db, 'menus', id);
+      // remove image if exists
+      if (formData.imagePath) {
+        const ref = storageRef(storage, formData.imagePath);
+        await deleteObject(ref).catch(() => {});
+      }
       await deleteDoc(docRef);
     },
     onSuccess: () => {
@@ -129,9 +152,126 @@ export default function EditMenu() {
 
     setIsSubmitting(true);
     try {
-      await updateMenuMutation.mutateAsync(formData);
+      // Build safe data without undefined image fields
+      await updateMenuMutation.mutateAsync({
+        name: formData.name,
+        vendor: formData.vendor,
+        location: formData.location,
+        category: formData.category,
+        tastes: formData.tastes,
+        ingredients: formData.ingredients,
+        nutrition: formData.nutrition,
+        ...(formData.imageUrl ? { imageUrl: formData.imageUrl } : {}),
+        ...(formData.imagePath ? { imagePath: formData.imagePath } : {}),
+        updatedAt: Date.now()
+      });
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) return setSelectedFile(null);
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const maxSizeMb = 3; // <= 3MB สำหรับความเร็วและต้นทุน
+    if (!validTypes.includes(file.type)) {
+      setMessage('❌ รองรับเฉพาะไฟล์ JPG/PNG/WEBP เท่านั้น');
+      return;
+    }
+    if (file.size > maxSizeMb * 1024 * 1024) {
+      setMessage(`❌ ไฟล์ใหญ่เกินไป (เกิน ${maxSizeMb}MB)`);
+      return;
+    }
+    setMessage('');
+    setSelectedFile(file);
+  };
+
+  const uploadViaFunction = async (menuId: string, file: File) => {
+    const token = await getIdToken(auth.currentUser!, true);
+    const formData = new FormData();
+    formData.append('file', file);
+    const resp = await fetch(`/api/uploadMenuImage?menuId=${encodeURIComponent(menuId)}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      throw new Error(`Server upload failed: ${resp.status} ${text}`);
+    }
+    return resp.json() as Promise<{ url: string; path: string }>; 
+  };
+
+  const handleUploadImage = async () => {
+    if (!id || !selectedFile) return;
+    try {
+      setUploadProgress(0);
+  const path = `menus/${id}/${Date.now()}-${selectedFile.name}`;
+      const ref = storageRef(storage, path);
+
+      // In localhost dev, skip direct Storage upload to avoid CORS and go straight to server upload
+      const isLocal = typeof window !== 'undefined' && window.location.origin.includes('localhost');
+      if (isLocal) {
+        const data = await uploadViaFunction(id, selectedFile);
+        await updateDoc(doc(db, 'menus', id), { imageUrl: data.url, imagePath: data.path, updatedAt: Date.now() });
+        setFormData(prev => ({ ...prev, imageUrl: data.url, imagePath: data.path }));
+        setSelectedFile(null);
+        setMessage('✅ อัปโหลดรูปสำเร็จ (ผ่านเซิร์ฟเวอร์)');
+        setUploadProgress(100);
+        return;
+      }
+      try {
+        // Attempt resumable upload (better UX)
+        const task = uploadBytesResumable(ref, selectedFile, { contentType: selectedFile.type });
+        await new Promise<void>((resolve, reject) => {
+          task.on('state_changed', (snap) => {
+            const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+            setUploadProgress(pct);
+          }, reject, () => resolve());
+        });
+      } catch (e) {
+        console.warn('Resumable upload failed, falling back to simple upload', e);
+        // Fallback: simple upload (avoids some preflight/CORS edge cases)
+        try {
+          await uploadBytes(ref, selectedFile, { contentType: selectedFile.type });
+          setUploadProgress(100);
+        } catch (e2) {
+          console.warn('Simple upload failed, trying server-side function', e2);
+          const data = await uploadViaFunction(id, selectedFile);
+          await updateDoc(doc(db, 'menus', id), { imageUrl: data.url, imagePath: data.path, updatedAt: Date.now() });
+          setFormData(prev => ({ ...prev, imageUrl: data.url, imagePath: data.path }));
+          setSelectedFile(null);
+          setMessage('✅ อัปโหลดรูปสำเร็จ (ผ่านเซิร์ฟเวอร์)');
+          setUploadProgress(100);
+          return;
+        }
+      }
+
+      const url = await getDownloadURL(ref);
+      await updateDoc(doc(db, 'menus', id), { imageUrl: url, imagePath: path, updatedAt: Date.now() });
+      setFormData(prev => ({ ...prev, imageUrl: url, imagePath: path }));
+      setSelectedFile(null);
+      setMessage('✅ อัปโหลดรูปสำเร็จ');
+    } catch (err) {
+      console.error('Upload image error', err);
+      setMessage('❌ เกิดข้อผิดพลาดในการอัปโหลดรูป');
+    } finally {
+      setUploadProgress(0);
+    }
+  };
+
+  const handleRemoveImage = async () => {
+    if (!id || !formData.imagePath) return;
+    try {
+      const ref = storageRef(storage, formData.imagePath);
+      await deleteObject(ref).catch(() => {}); // เผื่อไฟล์ไม่มีอยู่แล้ว
+      await updateDoc(doc(db, 'menus', id), { imageUrl: deleteField(), imagePath: deleteField(), updatedAt: Date.now() });
+      setFormData(prev => ({ ...prev, imageUrl: undefined, imagePath: undefined }));
+      setMessage('✅ ลบรูปสำเร็จ');
+    } catch (err) {
+      console.error('Delete image error', err);
+      setMessage('❌ เกิดข้อผิดพลาดในการลบรูป');
     }
   };
 
@@ -265,14 +405,48 @@ export default function EditMenu() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Image Upload */}
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                รูปภาพเมนู
+              </label>
+              {formData.imageUrl ? (
+                <div className="flex items-start gap-4">
+                  <img src={formData.imageUrl} alt={formData.name} className="w-48 h-36 object-cover rounded-lg border" />
+                  <div className="flex flex-col gap-2">
+                    <button type="button" onClick={handleRemoveImage} className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                      ลบรูปนี้
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <label htmlFor="menuImage" className="sr-only">เลือกรูปภาพเมนู</label>
+                  <input id="menuImage" type="file" accept="image/*" onChange={handleFileChange} title="เลือกรูปภาพเมนู" />
+                  {selectedFile && (
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-gray-600 dark:text-gray-300">{selectedFile.name}</span>
+                      <button type="button" onClick={handleUploadImage} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50" disabled={uploadProgress>0 && uploadProgress<100}>
+                        อัปโหลดรูป
+                      </button>
+                    </div>
+                  )}
+                  {uploadProgress > 0 && uploadProgress < 100 && (
+                    <progress value={uploadProgress} max={100} className="w-full h-2"></progress>
+                  )}
+                  <p className="text-xs text-gray-500">แนะนำ: JPG/PNG/WEBP ≤ 3MB</p>
+                </div>
+              )}
+            </div>
             {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="menuName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   ชื่อเมนู *
                 </label>
                 <input
                   type="text"
+                  id="menuName"
                   value={formData.name}
                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -281,11 +455,12 @@ export default function EditMenu() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="menuVendor" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   ร้านค้า *
                 </label>
                 <input
                   type="text"
+                  id="menuVendor"
                   value={formData.vendor}
                   onChange={(e) => setFormData(prev => ({ ...prev, vendor: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -297,10 +472,11 @@ export default function EditMenu() {
             {/* Location & Category */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="location" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   สถานที่
                 </label>
                 <select
+                  id="location"
                   value={formData.location}
                   onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value as Location }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -315,10 +491,11 @@ export default function EditMenu() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   ประเภท
                 </label>
                 <select
+                  id="category"
                   value={formData.category}
                   onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as Category }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -371,6 +548,7 @@ export default function EditMenu() {
                     value={newVeggie}
                     onChange={(e) => setNewVeggie(e.target.value)}
                     placeholder="เพิ่มผัก"
+                    aria-label="เพิ่มผัก"
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   />
                   <button
@@ -411,6 +589,7 @@ export default function EditMenu() {
                     value={newProtein}
                     onChange={(e) => setNewProtein(e.target.value)}
                     placeholder="เพิ่มโปรตีน"
+                    aria-label="เพิ่มโปรตีน"
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   />
                   <button
@@ -468,11 +647,12 @@ export default function EditMenu() {
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">ข้อมูลโภชนาการ</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="nutritionCal" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     แคลอรี่
                   </label>
                   <input
                     type="number"
+                    id="nutritionCal"
                     value={formData.nutrition.cal}
                     onChange={(e) => setFormData(prev => ({
                       ...prev,
@@ -483,11 +663,12 @@ export default function EditMenu() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="nutritionFat" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     ไขมัน (g)
                   </label>
                   <input
                     type="number"
+                    id="nutritionFat"
                     value={formData.nutrition.fat}
                     onChange={(e) => setFormData(prev => ({
                       ...prev,
@@ -499,11 +680,12 @@ export default function EditMenu() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="nutritionSugar" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     น้ำตาล (g)
                   </label>
                   <input
                     type="number"
+                    id="nutritionSugar"
                     value={formData.nutrition.sugar}
                     onChange={(e) => setFormData(prev => ({
                       ...prev,
@@ -515,11 +697,12 @@ export default function EditMenu() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <label htmlFor="nutritionSodium" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     โซเดียม (mg)
                   </label>
                   <input
                     type="number"
+                    id="nutritionSodium"
                     value={formData.nutrition.sodium}
                     onChange={(e) => setFormData(prev => ({
                       ...prev,

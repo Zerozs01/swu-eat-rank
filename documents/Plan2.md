@@ -2,6 +2,7 @@
 # SWU EatRank — Plan2 (Post-MVP hardening & Phase-2 prep)
 
 ## TL;DR
+
 - 🔧 แก้จุดเสี่ยง: seed script หาย, Firestore Rules ขัดกับโค้ด, config Firebase แข็งทื่อ (hard-coded), index/query ยังไม่พร้อม board, storageBucket ผิดโดเมน
 - 🚀 เป้าหมาย 2 สัปดาห์: เสถียร + deploy จริง + เตรียม aggregate รายวัน
 - 🧱 ลำดับทำงาน: Now → Next → Later (ตัดสินใจง่าย)
@@ -9,6 +10,7 @@
 ---
 
 ## 1) ภาพรวมสถานะที่ตรวจจากโปรเจกต์
+
 - Codebase: Vite + React + TS + Tailwind + Firebase (Auth/Firestore/Analytics) พร้อมหน้า Search/Detail/Board/Me ครบ
 - เอกสาร: `documents/Readme.md`, `Plan.md`, `Mvp_scope(phase1).md`, `FIREBASE_SETUP.md`, `FIRESTORE_SETUP.md` ครบและชัด
 - Seed data: มี `src/data/menus.seed.json` **แต่** ไม่มี `scripts/seed.ts` จริง (package.json ชี้ไปที่ไฟล์ที่ไม่มี)
@@ -21,10 +23,12 @@
 ## 2) สิ่งที่ต้องแก้ด่วน (NOW)
 
 ### 2.1 Seed script ให้ใช้งานได้จริง
+
 - แก้ `package.json` หรือสร้าง `scripts/seed.ts` ให้ตรงทาง:
   - ทางเลือก A: เปลี่ยนสคริปต์เป็น `tsx src/scripts/seed.ts` แล้ววางไฟล์ไว้ใน `src/scripts/seed.ts`
   - ทางเลือก B: สร้างโฟลเดอร์ `scripts/seed.ts` ให้ตรงตามเดิม
 - ตัวอย่าง `src/scripts/seed.ts` (ย่อ):
+
   ```ts
   import { initializeApp } from 'firebase/app';
   import { getFirestore, doc, setDoc } from 'firebase/firestore';
@@ -37,7 +41,9 @@
   const db = getFirestore(app);
   await Promise.all(menus.map((m: any) => setDoc(doc(db, 'menus', m.id), m)));
   console.log('Seed done');
+
 ````
+
 
 * เพิ่ม `.env.example` ระบุคีย์ที่ต้องใช้ และอัปเดต README เรื่องการ seed
 

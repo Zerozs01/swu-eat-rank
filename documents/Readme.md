@@ -355,11 +355,13 @@ service cloud.firestore {
     - Dark mode support
 
 ### 📊 ข้อมูลเมนู
+
 - มีเมนูตัวอย่าง 50+ รายการ
 - ครอบคลุม 3 โรงอาหาร (วิศวะ, สุขภาพ, หอพัก)
 - มีข้อมูล nutrition และ ingredients ครบถ้วน
 
 ### 🔒 ความปลอดภัย
+
 - Firestore rules ป้องกันข้อมูลส่วนตัว
 - Anonymous auth ไม่เก็บข้อมูลส่วนบุคคล
 - Public/private visibility controls
@@ -369,17 +371,20 @@ service cloud.firestore {
 ## 20) วิธีรันโปรเจค
 
 ### Prerequisites
+
 - Node.js 18+
 - npm หรือ yarn
 - Firebase project (ตั้งค่าแล้ว)
 
 ### Installation
+
 ```bash
 cd swu-eat-rank
 npm install
 ```
 
 ### Environment Setup
+
 1. คัดลอกไฟล์ `env.example` เป็น `.env`:
 ```bash
 cp env.example .env
@@ -397,16 +402,19 @@ VITE_FB_MEASUREMENT_ID=your_measurement_id
 ```
 
 ### Development
+
 ```bash
 npm run dev
 ```
 
 ### Seed ข้อมูลเมนู
+
 ```bash
 npm run seed
 ```
 
 ### Build
+
 ```bash
 npm run build
 ```
@@ -416,6 +424,7 @@ npm run build
 ## 21) งานที่เหลือ (Phase 2+)
 
 ### 🎯 ฟีเจอร์ที่ยังไม่ได้ทำ
+
 1. **Leaderboard System**
    - Weekly leaderboard
    - Badge system (Veggie Lover, Fry-Free Day, etc.)
@@ -439,6 +448,20 @@ npm run build
 5. **Advanced Features**
    - Menu recommendations
    - Social features
+
+---
+
+## 22) Image Upload (รูปภาพเมนู) — โฟลว์ล่าสุด
+
+* ฝั่ง Client (โฮสต์จริง): พยายามอัปโหลดตรงไปที่ Firebase Storage (resumable → simple) ถ้า preflight/CORS ล้มเหลวจะ fallback ไป Cloud Function
+* ฝั่ง Client (localhost): ใช้ Cloud Function โดยตรง (เลี่ยง CORS)
+* Cloud Function `uploadMenuImage` (asia-east1, Node 20, Functions v2) จะ:
+   * ตรวจ Firebase ID token
+   * รับไฟล์ผ่าน multipart/form-data (Busboy)
+   * อัปโหลดไฟล์ไปยัง `menus/{menuId}/{filename}`
+   * ตั้ง metadata token และคืน download URL รูปแบบ `alt=media&token=...`
+
+Dev Proxy (Vite): ตั้งค่าใน `vite.config.ts` ให้ `/api/*` proxy ไป `https://asia-east1-swu-eat-rank.cloudfunctions.net`
    - Push notifications
 
 ---
@@ -446,6 +469,7 @@ npm run build
 ## 22) Technical Debt & Improvements
 
 ### 🔧 ปัญหาที่ต้องแก้ไข
+
 1. **Performance**
    - Client-side filtering อาจช้าเมื่อข้อมูลเยอะ
    - ควรใช้ Firestore queries แทน
@@ -467,12 +491,14 @@ npm run build
 ## 23) Deployment Status
 
 ### 🚀 Production Ready
+
 - ✅ Firebase Hosting configured
 - ✅ Environment variables set
 - ✅ Build process working
 - ✅ Firestore rules deployed
 
 ### 📱 Demo Access
+
 - URL: [จะใส่เมื่อ deploy]
 - Test account: Anonymous (auto sign-in)
 

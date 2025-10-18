@@ -6,9 +6,21 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isOwner() {
+      return isSignedIn() && request.auth.token.email == 'auandmaxma@gmail.com';
+    }
+
+    // Admin = Owner หรือมีอีเมลอยู่ในคอลเลกชัน adminUsers/{email}
+    function isAdmin() {
+      return isOwner() || (
+        isSignedIn() && exists(/databases/$(db)/documents/adminUsers/$(request.auth.token.email))
+      );
+    }
+
     match /menus/{id} {
       allow read: if true;       // public
-      allow write: if true;      // อนุญาตการเขียนสำหรับ seed
+      // จำกัดการเขียนสำหรับเฉพาะ Admin เท่านั้น
+      allow write: if isAdmin();
     }
 
     match /logs/{id} {
