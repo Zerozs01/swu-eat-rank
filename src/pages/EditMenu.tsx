@@ -203,6 +203,19 @@ export default function EditMenu() {
     return resp.json() as Promise<{ url: string; path: string }>; 
   };
 
+  const deleteViaFunction = async (path: string) => {
+    const token = await getIdToken(auth.currentUser!, true);
+    const resp = await fetch(`/api/deleteMenuImage?path=${encodeURIComponent(path)}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      throw new Error(`Server delete failed: ${resp.status} ${text}`);
+    }
+    return resp.json() as Promise<{ ok: boolean }>; 
+  };
+
   const handleUploadImage = async () => {
     if (!id || !selectedFile) return;
     try {
@@ -264,8 +277,20 @@ export default function EditMenu() {
   const handleRemoveImage = async () => {
     if (!id || !formData.imagePath) return;
     try {
-      const ref = storageRef(storage, formData.imagePath);
-      await deleteObject(ref).catch(() => {}); // เผื่อไฟล์ไม่มีอยู่แล้ว
+      const isLocal = typeof window !== 'undefined' && window.location.origin.includes('localhost');
+      if (isLocal) {
+        // ใช้ฟังก์ชันโดยตรง (เลี่ยง CORS)
+        await deleteViaFunction(formData.imagePath);
+      } else {
+        // พยายามลบผ่าน Storage ก่อน ถ้า CORS พังค่อย fallback ฟังก์ชัน
+        const ref = storageRef(storage, formData.imagePath);
+        try {
+          await deleteObject(ref);
+        } catch (e) {
+          console.warn('Client delete failed, trying server function', e);
+          await deleteViaFunction(formData.imagePath);
+        }
+      }
       await updateDoc(doc(db, 'menus', id), { imageUrl: deleteField(), imagePath: deleteField(), updatedAt: Date.now() });
       setFormData(prev => ({ ...prev, imageUrl: undefined, imagePath: undefined }));
       setMessage('✅ ลบรูปสำเร็จ');

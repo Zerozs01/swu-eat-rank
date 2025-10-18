@@ -94,3 +94,59 @@ export const uploadMenuImage = onRequest({ region: 'asia-east1', cors: ['https:/
     });
     busboy.end(req.rawBody);
 });
+// HTTPS function to delete a menu image via server (bypasses browser CORS)
+export const deleteMenuImage = onRequest({ region: 'asia-east1', cors: ['https://swu-eat-rank.web.app', 'https://swu-eat-rank.firebaseapp.com', 'http://localhost:5173'] }, async (req, res) => {
+    const method = req.method;
+    if (method === 'OPTIONS') {
+        res.status(204).end();
+        return;
+    }
+    if (req.method !== 'POST' && req.method !== 'DELETE') {
+        res.set('Allow', 'POST, DELETE');
+        res.status(405).send('Method Not Allowed');
+        return;
+    }
+    // Auth
+    try {
+        const authHeader = req.headers.authorization || '';
+        if (!authHeader.startsWith('Bearer ')) {
+            res.status(401).json({ error: 'Missing Authorization Bearer token' });
+            return;
+        }
+        const idToken = authHeader.split('Bearer ')[1];
+        const decoded = await getAuth().verifyIdToken(idToken);
+        if (!decoded) {
+            res.status(401).json({ error: 'Invalid token' });
+            return;
+        }
+    }
+    catch (e) {
+        console.error('Auth verify error', e);
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+    }
+    const pathParam = req.query.path;
+    if (!pathParam) {
+        res.status(400).json({ error: 'path is required' });
+        return;
+    }
+    // Basic safety: only allow under menus/
+    if (!pathParam.startsWith('menus/') || pathParam.includes('..')) {
+        res.status(400).json({ error: 'Invalid path' });
+        return;
+    }
+    try {
+        const bucket = storage.bucket();
+        const file = bucket.file(pathParam);
+        await file.delete({ ignoreNotFound: true }).catch(async (err) => {
+            // Some SDKs don't accept ignoreNotFound in options; fallback to swallow 404
+            if (err && err.code !== 404)
+                throw err;
+        });
+        res.status(200).json({ ok: true });
+    }
+    catch (err) {
+        console.error('Delete error', err);
+        res.status(500).json({ error: 'Delete failed', details: err?.message });
+    }
+});

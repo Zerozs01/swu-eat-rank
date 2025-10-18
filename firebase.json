@@ -29,6 +29,13 @@
         }
       },
       {
+        "source": "/api/deleteMenuImage",
+        "function": {
+          "functionId": "deleteMenuImage",
+          "region": "asia-east1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
