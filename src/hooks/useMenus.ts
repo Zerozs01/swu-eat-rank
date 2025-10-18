@@ -8,6 +8,8 @@ interface UseMenusOptions {
   category?: Category;
   tastes?: Taste[];
   searchTerm?: string;
+  // When true, always refetch from Firestore on mount/focus and avoid stale cache
+  fresh?: boolean;
 }
 
 export function useMenus(options: UseMenusOptions = {}) {
@@ -58,7 +60,11 @@ export function useMenus(options: UseMenusOptions = {}) {
       console.log('useMenus: Returning', menus.length, 'menus after all filtering');
       return menus;
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    // Force fresh data if requested (useful for admin pages to avoid ghost items)
+    staleTime: options.fresh ? 0 : 5 * 60 * 1000,
+    refetchOnMount: options.fresh ? 'always' : false,
+    refetchOnWindowFocus: !!options.fresh,
+    refetchOnReconnect: !!options.fresh,
   });
 
   return {

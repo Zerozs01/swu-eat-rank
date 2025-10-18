@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { doc, getDoc, updateDoc, deleteDoc, deleteField } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, deleteField } from 'firebase/firestore';
 import { db, storage, auth } from '../lib/firebase';
 import { ref as storageRef, uploadBytesResumable, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { getIdToken } from 'firebase/auth';
@@ -107,7 +107,8 @@ export default function EditMenu() {
         ...(menuData.imagePath ? { imagePath: menuData.imagePath } : {}),
         updatedAt: Date.now(),
       };
-      await updateDoc(docRef, payload);
+      // Use setDoc with merge to create the doc if it was missing (avoids 'No document to update')
+      await setDoc(docRef, payload, { merge: true });
       return { id, ...menuData };
     },
     onSuccess: () => {
@@ -226,8 +227,8 @@ export default function EditMenu() {
       // In localhost dev, skip direct Storage upload to avoid CORS and go straight to server upload
       const isLocal = typeof window !== 'undefined' && window.location.origin.includes('localhost');
       if (isLocal) {
-        const data = await uploadViaFunction(id, selectedFile);
-        await updateDoc(doc(db, 'menus', id), { imageUrl: data.url, imagePath: data.path, updatedAt: Date.now() });
+  const data = await uploadViaFunction(id, selectedFile);
+  await setDoc(doc(db, 'menus', id), { imageUrl: data.url, imagePath: data.path, updatedAt: Date.now() }, { merge: true });
         setFormData(prev => ({ ...prev, imageUrl: data.url, imagePath: data.path }));
         setSelectedFile(null);
         setMessage('✅ อัปโหลดรูปสำเร็จ (ผ่านเซิร์ฟเวอร์)');
@@ -252,7 +253,7 @@ export default function EditMenu() {
         } catch (e2) {
           console.warn('Simple upload failed, trying server-side function', e2);
           const data = await uploadViaFunction(id, selectedFile);
-          await updateDoc(doc(db, 'menus', id), { imageUrl: data.url, imagePath: data.path, updatedAt: Date.now() });
+          await setDoc(doc(db, 'menus', id), { imageUrl: data.url, imagePath: data.path, updatedAt: Date.now() }, { merge: true });
           setFormData(prev => ({ ...prev, imageUrl: data.url, imagePath: data.path }));
           setSelectedFile(null);
           setMessage('✅ อัปโหลดรูปสำเร็จ (ผ่านเซิร์ฟเวอร์)');
@@ -261,8 +262,8 @@ export default function EditMenu() {
         }
       }
 
-      const url = await getDownloadURL(ref);
-      await updateDoc(doc(db, 'menus', id), { imageUrl: url, imagePath: path, updatedAt: Date.now() });
+  const url = await getDownloadURL(ref);
+  await setDoc(doc(db, 'menus', id), { imageUrl: url, imagePath: path, updatedAt: Date.now() }, { merge: true });
       setFormData(prev => ({ ...prev, imageUrl: url, imagePath: path }));
       setSelectedFile(null);
       setMessage('✅ อัปโหลดรูปสำเร็จ');
@@ -291,7 +292,7 @@ export default function EditMenu() {
           await deleteViaFunction(formData.imagePath);
         }
       }
-      await updateDoc(doc(db, 'menus', id), { imageUrl: deleteField(), imagePath: deleteField(), updatedAt: Date.now() });
+  await setDoc(doc(db, 'menus', id), { imageUrl: deleteField(), imagePath: deleteField(), updatedAt: Date.now() }, { merge: true });
       setFormData(prev => ({ ...prev, imageUrl: undefined, imagePath: undefined }));
       setMessage('✅ ลบรูปสำเร็จ');
     } catch (err) {

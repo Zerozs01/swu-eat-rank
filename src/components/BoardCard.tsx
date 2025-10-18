@@ -14,12 +14,40 @@ interface BoardCardProps {
 export default function BoardCard({ menu, orderCount, totalQuantity, rank }: BoardCardProps) {
   const healthScore = calcHealthScore(menu);
 
+  const popularityPct = Math.min((totalQuantity / 20) * 100, 100);
+  const widthClass = (() => {
+    const p = popularityPct;
+    if (p <= 0) return 'w-0';
+    if (p <= 10) return 'w-1/6';
+    if (p <= 20) return 'w-1/4';
+    if (p <= 30) return 'w-1/3';
+    if (p <= 40) return 'w-2/5';
+    if (p <= 50) return 'w-1/2';
+    if (p <= 60) return 'w-3/5';
+    if (p <= 70) return 'w-2/3';
+    if (p <= 80) return 'w-3/4';
+    if (p <= 90) return 'w-5/6';
+    return 'w-full';
+  })();
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border border-gray-200 dark:border-gray-700 relative">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 border border-gray-200 dark:border-gray-700 relative overflow-hidden">
       {/* Rank Badge */}
       <div className="absolute -top-2 -left-2 w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-full flex items-center justify-center text-sm font-bold shadow-lg">
         {rank}
       </div>
+
+      {/* Image (similar to Search's MenuCard) */}
+      {menu.imageUrl && (
+        <div className="w-full aspect-[4/3] bg-gray-100 dark:bg-gray-700 mb-3 rounded-md overflow-hidden">
+          <img
+            src={menu.imageUrl}
+            alt={menu.name}
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+        </div>
+      )}
 
       {/* Header */}
       <div className="mb-3">
@@ -72,13 +100,12 @@ export default function BoardCard({ menu, orderCount, totalQuantity, rank }: Boa
 
       {/* Popularity Indicator */}
       <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-        <div 
-          className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
-          style={{ width: `${Math.min((totalQuantity / 20) * 100, 100)}%` }}
+        <div
+          className={`bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300 ${widthClass}`}
         ></div>
       </div>
       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
-        ความนิยม {Math.min((totalQuantity / 20) * 100, 100).toFixed(0)}%
+        ความนิยม {popularityPct.toFixed(0)}%
       </p>
     </div>
   );

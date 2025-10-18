@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { doc, deleteDoc, getDoc } from 'firebase/firestore';
-import { db, storage } from '../lib/firebase';
+import { db, storage, auth } from '../lib/firebase';
 import { ref as storageRef, deleteObject } from 'firebase/storage';
+import { getIdToken } from 'firebase/auth';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 import { useMenus } from '../hooks/useMenus';
 import type { Menu } from '../types/menu';
@@ -11,7 +12,7 @@ import { LOCATIONS, CATEGORIES } from '../constants/enums';
 
 export default function ManageMenus() {
   const { isAdmin, adminLoading, userEmail, isAuthenticated } = useAdminAuth();
-  const { menus, isLoading, error } = useMenus();
+  const { menus, isLoading, error } = useMenus({ fresh: true });
   const queryClient = useQueryClient();
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
 
@@ -22,8 +23,31 @@ export default function ManageMenus() {
       if (snap.exists()) {
         const data = snap.data() as Partial<Menu>;
         if (data.imagePath) {
-          const ref = storageRef(storage, data.imagePath);
-          await deleteObject(ref).catch(() => {});
+          // Prefer server-side delete to avoid CORS/preflight issues, with client fallback
+          const isLocal = typeof window !== 'undefined' && window.location.origin.includes('localhost');
+          const tryServerDelete = async () => {
+            const token = await getIdToken(auth.currentUser!, true);
+            const resp = await fetch(`/api/deleteMenuImage?path=${encodeURIComponent(data.imagePath!)}` ,{
+              method: 'POST',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!resp.ok) {
+              const text = await resp.text().catch(() => '');
+              throw new Error(`Server delete failed: ${resp.status} ${text}`);
+            }
+            return resp.json();
+          };
+
+          if (isLocal) {
+            await tryServerDelete().catch(() => {});
+          } else {
+            try {
+              await tryServerDelete();
+            } catch {
+              const ref = storageRef(storage, data.imagePath!);
+              await deleteObject(ref).catch(() => {});
+            }
+          }
         }
       }
       await deleteDoc(docRef);
@@ -96,12 +120,21 @@ export default function ManageMenus() {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
               📋 จัดการเมนูทั้งหมด
             </h1>
-            <Link
-              to="/admin"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              ← กลับหน้า Admin
-            </Link>
+            <div className="flex gap-2">
+              <button
+                onClick={() => queryClient.invalidateQueries({ queryKey: ['menus'] })}
+                className="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-100 px-3 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                title="รีเฟรชข้อมูล"
+              >
+                🔄 รีเฟรช
+              </button>
+              <Link
+                to="/admin"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                ← กลับหน้า Admin
+              </Link>
+            </div>
           </div>
 
 

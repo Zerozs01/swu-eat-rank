@@ -59,7 +59,7 @@ export default function Navbar() {
               }`}
             >
               <HomeIcon className="w-4 h-4" />
-              <span>หน้าแรก</span>
+              <span>Homepage</span>
             </Link>
             
             <Link
@@ -71,7 +71,7 @@ export default function Navbar() {
               }`}
             >
               <SearchIcon className="w-4 h-4" />
-              <span>ค้นหาเมนู</span>
+              <span>Find Menu</span>
             </Link>
             
             <Link
@@ -83,7 +83,7 @@ export default function Navbar() {
               }`}
             >
               <ChartIcon className="w-4 h-4" />
-              <span>กระดานรวม</span>
+              <span>Popular</span>
             </Link>
             
             <Link
