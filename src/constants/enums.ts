@@ -19,7 +19,8 @@ export const TASTES: Record<Taste, string> = {
   OILY: 'มัน',
   SPICY: 'เผ็ด',
   SOUR: 'เปรี้ยว',
-  BLAND: 'จืด'
+  BLAND: 'จืด',
+  SALTY: 'เค็ม'
 };
 
 export const COOKING_METHODS: Record<Cooking, string> = {

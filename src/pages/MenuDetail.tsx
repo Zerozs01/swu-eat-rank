@@ -166,7 +166,7 @@ export default function MenuDetail() {
                 <HealthBadge score={healthScore} />
               </div>
 
-              {/* Location & Category */}
+              {/* Location, Category & Price */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <span className="text-sm text-gray-500">📍 โรงอาหาร</span>
@@ -176,6 +176,12 @@ export default function MenuDetail() {
                   <span className="text-sm text-gray-500">🍽️ ประเภท</span>
                   <p className="font-medium">{CATEGORIES[menu.category]}</p>
                 </div>
+                {typeof menu.price === 'number' && (
+                  <div className="col-span-2">
+                    <span className="text-sm text-gray-500">💵 ราคา</span>
+                    <p className="font-medium">฿{menu.price}</p>
+                  </div>
+                )}
               </div>
 
               {/* Tastes */}
@@ -260,6 +266,7 @@ export default function MenuDetail() {
                      value={selectedFaculty}
                      onChange={(e) => setSelectedFaculty(e.target.value)}
                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                     aria-label="เลือกคณะของคุณ"
                    >
                      <option value="">เลือกคณะ</option>
                      {FACULTIES.map((faculty) => (

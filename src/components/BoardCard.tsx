@@ -54,9 +54,16 @@ export default function BoardCard({ menu, orderCount, totalQuantity, rank }: Boa
         <h3 className="font-semibold text-gray-800 dark:text-white text-lg mb-1">
           {menu.name}
         </h3>
-        <p className="text-sm text-gray-600 dark:text-gray-300">
-          {menu.vendor} • {LOCATIONS[menu.location]}
-        </p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-600 dark:text-gray-300">
+            {menu.vendor} • {LOCATIONS[menu.location]}
+          </p>
+          {typeof menu.price === 'number' && (
+            <span className="text-xs font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900 px-2 py-0.5 rounded">
+              ฿{menu.price}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Tags */}

@@ -42,7 +42,14 @@ export default function MenuCard({ menu, onClick }: MenuCardProps) {
         <HealthBadge score={healthScore} showLabel={false} />
       </div>
       
-      <p className="px-4 text-sm text-gray-600 mb-2">{menu.vendor}</p>
+      <div className="px-4 mb-2 flex items-center justify-between">
+        <p className="text-sm text-gray-600">{menu.vendor}</p>
+        {typeof menu.price === 'number' && (
+          <span className="text-sm font-semibold text-green-700 bg-green-100 px-2 py-0.5 rounded">
+            ฿{menu.price}
+          </span>
+        )}
+      </div>
       
       <div className="px-4 flex flex-wrap gap-1 mb-3">
         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">

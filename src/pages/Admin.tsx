@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { collection, addDoc, doc, setDoc } from 'firebase/firestore';
+import { db, storage, auth } from '../lib/firebase';
+import { ref as storageRef, uploadBytesResumable, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { getIdToken } from 'firebase/auth';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 import type { Menu, Location, Category, Taste, Cooking } from '../types/menu';
 import { LOCATIONS, CATEGORIES, TASTES, COOKING_METHODS } from '../constants/enums';
@@ -15,6 +17,7 @@ export default function Admin() {
     location: 'ENG_CANTEEN' as Location,
     category: 'RICE' as Category,
     tastes: [] as Taste[],
+    price: undefined as number | undefined,
     ingredients: {
       veggies: [] as string[],
       proteins: [] as string[],
@@ -32,6 +35,8 @@ export default function Admin() {
   const [newProtein, setNewProtein] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
 
   const queryClient = useQueryClient();
 
@@ -43,28 +48,73 @@ export default function Admin() {
       });
       return docRef.id;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['menus'] });
-      setMessage('✅ เพิ่มเมนูสำเร็จ!');
-      resetForm();
-    },
     onError: (error) => {
       setMessage(`❌ เกิดข้อผิดพลาด: ${error.message}`);
     }
   });
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    if (!file) return setSelectedFile(null);
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const maxSizeMb = 3; // <= 3MB
+    if (!validTypes.includes(file.type)) {
+      setMessage('❌ รองรับเฉพาะไฟล์ JPG/PNG/WEBP เท่านั้น');
+      return;
+    }
+    if (file.size > maxSizeMb * 1024 * 1024) {
+      setMessage(`❌ ไฟล์ใหญ่เกินไป (เกิน ${maxSizeMb}MB)`);
+      return;
+    }
+    setMessage('');
+    setSelectedFile(file);
+  };
+
+  const uploadViaFunction = async (menuId: string, file: File) => {
+    const token = await getIdToken(auth.currentUser!, true);
+    const form = new FormData();
+    form.append('file', file);
+    const resp = await fetch(`/api/uploadMenuImage?menuId=${encodeURIComponent(menuId)}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: form,
+    });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      throw new Error(`Server upload failed: ${resp.status} ${text}`);
+    }
+    return resp.json() as Promise<{ url: string; path: string }>; 
+  };
+
+  const handleInputChange = (
+    field: 'name' | 'vendor' | 'location' | 'category' | 'price',
+    value: string | number | Location | Category | undefined
+  ) => {
+    setFormData(prev => {
+      if (field === 'name') return { ...prev, name: value as string };
+      if (field === 'vendor') return { ...prev, vendor: value as string };
+      if (field === 'location') return { ...prev, location: value as Location };
+      if (field === 'category') return { ...prev, category: value as Category };
+      if (field === 'price') return { ...prev, price: value as number | undefined };
+      return prev;
+    });
+  };
+
+  const updateCooking = (value: Cooking) => {
     setFormData(prev => ({
       ...prev,
-      [field]: value
+      ingredients: {
+        ...prev.ingredients,
+        cooking: value
+      }
     }));
   };
 
-  const handleNestedInputChange = (parent: string, field: string, value: any) => {
+  const updateNutrition = (field: 'cal' | 'fat' | 'sugar' | 'sodium', value: number) => {
     setFormData(prev => ({
       ...prev,
-      [parent]: {
-        ...(prev[parent as keyof typeof prev] as any),
+      nutrition: {
+        ...prev.nutrition,
         [field]: value
       }
     }));
@@ -132,6 +182,7 @@ export default function Admin() {
       location: 'ENG_CANTEEN',
       category: 'RICE',
       tastes: [],
+      price: undefined,
       ingredients: {
         veggies: [],
         proteins: [],
@@ -146,6 +197,8 @@ export default function Admin() {
     });
     setNewVeggie('');
     setNewProtein('');
+    setSelectedFile(null);
+    setUploadProgress(0);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -154,9 +207,67 @@ export default function Admin() {
     setMessage('');
 
     try {
-      await addMenuMutation.mutateAsync(formData);
+      // Only pass price when valid number
+      const payload = {
+        name: formData.name,
+        vendor: formData.vendor,
+        location: formData.location,
+        category: formData.category,
+        tastes: formData.tastes,
+        ingredients: formData.ingredients,
+        nutrition: formData.nutrition,
+        ...(typeof formData.price === 'number' && !Number.isNaN(formData.price) ? { price: formData.price } : {}),
+      } as Omit<Menu, 'id' | 'updatedAt'>;
+
+      const newId = await addMenuMutation.mutateAsync(payload);
+
+      let uploadErrorMessage: string | null = null;
+      // If image selected, upload and update menu doc with image fields
+      if (selectedFile) {
+        try {
+          setUploadProgress(0);
+          const path = `menus/${newId}/${Date.now()}-${selectedFile.name}`;
+          const ref = storageRef(storage, path);
+          const isLocal = typeof window !== 'undefined' && window.location.origin.includes('localhost');
+          if (isLocal) {
+            const data = await uploadViaFunction(newId, selectedFile);
+            await setDoc(doc(db, 'menus', newId), { imageUrl: data.url, imagePath: data.path, updatedAt: Date.now() }, { merge: true });
+          } else {
+            try {
+              const task = uploadBytesResumable(ref, selectedFile, { contentType: selectedFile.type });
+              await new Promise<void>((resolve, reject) => {
+                task.on('state_changed', (snap) => {
+                  const pct = Math.round((snap.bytesTransferred / snap.totalBytes) * 100);
+                  setUploadProgress(pct);
+                }, reject, () => resolve());
+              });
+              const url = await getDownloadURL(ref);
+              await setDoc(doc(db, 'menus', newId), { imageUrl: url, imagePath: path, updatedAt: Date.now() }, { merge: true });
+            } catch {
+              try {
+                await uploadBytes(ref, selectedFile, { contentType: selectedFile.type });
+                const url = await getDownloadURL(ref);
+                await setDoc(doc(db, 'menus', newId), { imageUrl: url, imagePath: path, updatedAt: Date.now() }, { merge: true });
+              } catch {
+                const data = await uploadViaFunction(newId, selectedFile);
+                await setDoc(doc(db, 'menus', newId), { imageUrl: data.url, imagePath: data.path, updatedAt: Date.now() }, { merge: true });
+              }
+            }
+          }
+        } catch (uploadErr) {
+          console.error('Error uploading image after create:', uploadErr);
+          uploadErrorMessage = '⚠️ เพิ่มเมนูแล้ว แต่การอัปโหลดรูปมีปัญหา';
+        } finally {
+          setUploadProgress(0);
+        }
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['menus'] });
+      setMessage(uploadErrorMessage ?? '✅ เพิ่มเมนูสำเร็จ!');
+      resetForm();
     } catch (error) {
       console.error('Error adding menu:', error);
+      setMessage('❌ เกิดข้อผิดพลาดในการเพิ่มเมนู');
     } finally {
       setIsSubmitting(false);
     }
@@ -239,6 +350,28 @@ export default function Admin() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* รูปภาพเมนู */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                รูปภาพเมนู
+              </label>
+              <input
+                id="newMenuImage"
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                title="เลือกรูปภาพเมนู"
+              />
+              {selectedFile && (
+                <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-300">
+                  <span>{selectedFile.name}</span>
+                  {uploadProgress > 0 && uploadProgress < 100 && (
+                    <progress value={uploadProgress} max={100} className="w-40 h-2"></progress>
+                  )}
+                </div>
+              )}
+              <p className="text-xs text-gray-500">แนะนำ: JPG/PNG/WEBP ≤ 3MB</p>
+            </div>
             {/* ชื่อเมนู */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -278,6 +411,7 @@ export default function Admin() {
                 value={formData.location}
                 onChange={(e) => handleInputChange('location', e.target.value as Location)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                aria-label="เลือกโรงอาหาร"
               >
                 {Object.entries(LOCATIONS).map(([key, value]) => (
                   <option key={key} value={key}>{value}</option>
@@ -294,11 +428,34 @@ export default function Admin() {
                 value={formData.category}
                 onChange={(e) => handleInputChange('category', e.target.value as Category)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                aria-label="เลือกประเภทอาหาร"
               >
                 {Object.entries(CATEGORIES).map(([key, value]) => (
                   <option key={key} value={key}>{value}</option>
                 ))}
               </select>
+            </div>
+
+            {/* ราคาอาหาร */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                ราคา (บาท)
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step={1}
+                value={typeof formData.price === 'number' ? formData.price : ''}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  const num = v === '' ? undefined : Number(v);
+                  handleInputChange('price', Number.isFinite(num as number) ? (num as number) : undefined);
+                }}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                placeholder="เช่น 50"
+                aria-label="กรอกราคาอาหาร"
+              />
             </div>
 
             {/* รสชาติ */}
@@ -410,8 +567,9 @@ export default function Admin() {
               </label>
               <select
                 value={formData.ingredients.cooking}
-                onChange={(e) => handleNestedInputChange('ingredients', 'cooking', e.target.value as Cooking)}
+                onChange={(e) => updateCooking(e.target.value as Cooking)}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                aria-label="เลือกวิธีการปรุง"
               >
                 {Object.entries(COOKING_METHODS).map(([key, value]) => (
                   <option key={key} value={key}>{value}</option>
@@ -430,7 +588,7 @@ export default function Admin() {
                   <input
                     type="number"
                     value={formData.nutrition.cal}
-                    onChange={(e) => handleNestedInputChange('nutrition', 'cal', parseInt(e.target.value) || 0)}
+                    onChange={(e) => updateNutrition('cal', parseInt(e.target.value) || 0)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                     placeholder="450"
                   />
@@ -440,7 +598,7 @@ export default function Admin() {
                   <input
                     type="number"
                     value={formData.nutrition.fat}
-                    onChange={(e) => handleNestedInputChange('nutrition', 'fat', parseInt(e.target.value) || 0)}
+                    onChange={(e) => updateNutrition('fat', parseInt(e.target.value) || 0)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                     placeholder="15"
                   />
@@ -450,7 +608,7 @@ export default function Admin() {
                   <input
                     type="number"
                     value={formData.nutrition.sugar}
-                    onChange={(e) => handleNestedInputChange('nutrition', 'sugar', parseInt(e.target.value) || 0)}
+                    onChange={(e) => updateNutrition('sugar', parseInt(e.target.value) || 0)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                     placeholder="5"
                   />
@@ -460,7 +618,7 @@ export default function Admin() {
                   <input
                     type="number"
                     value={formData.nutrition.sodium}
-                    onChange={(e) => handleNestedInputChange('nutrition', 'sodium', parseInt(e.target.value) || 0)}
+                    onChange={(e) => updateNutrition('sodium', parseInt(e.target.value) || 0)}
                     className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                     placeholder="800"
                   />

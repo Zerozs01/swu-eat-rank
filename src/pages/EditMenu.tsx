@@ -21,6 +21,7 @@ export default function EditMenu() {
     location: 'ENG_CANTEEN' as Location,
     category: 'RICE' as Category,
     tastes: [] as Taste[],
+    price: undefined as number | undefined,
     ingredients: {
       veggies: [] as string[],
       proteins: [] as string[],
@@ -55,16 +56,19 @@ export default function EditMenu() {
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
-          const data = docSnap.data() as Menu;
+          const data = docSnap.data() as Partial<Menu> & { veggies?: string[]; proteins?: string[] };
+          const legacyVeggies = data.veggies;
+          const legacyProteins = data.proteins;
           setFormData({
             name: data.name || '',
             vendor: data.vendor || '',
             location: data.location || 'ENG_CANTEEN',
             category: data.category || 'RICE',
             tastes: data.tastes || [],
+            price: typeof data.price === 'number' ? data.price : undefined,
             ingredients: {
-              veggies: data.ingredients?.veggies || [],
-              proteins: data.ingredients?.proteins || [],
+              veggies: data.ingredients?.veggies || legacyVeggies || [],
+              proteins: data.ingredients?.proteins || legacyProteins || [],
               cooking: data.ingredients?.cooking || 'STIR'
             },
             nutrition: {
@@ -95,7 +99,7 @@ export default function EditMenu() {
       if (!id) throw new Error('No menu ID');
       const docRef = doc(db, 'menus', id);
       // Build payload explicitly to avoid passing undefined values
-      const payload = {
+      const payload: Record<string, unknown> = {
         name: menuData.name,
         vendor: menuData.vendor,
         location: menuData.location,
@@ -107,6 +111,9 @@ export default function EditMenu() {
         ...(menuData.imagePath ? { imagePath: menuData.imagePath } : {}),
         updatedAt: Date.now(),
       };
+      if (typeof (menuData as Partial<Menu>).price === 'number') {
+        payload.price = (menuData as Partial<Menu>).price as number;
+      }
       // Use setDoc with merge to create the doc if it was missing (avoids 'No document to update')
       await setDoc(docRef, payload, { merge: true });
       return { id, ...menuData };
@@ -160,6 +167,7 @@ export default function EditMenu() {
         location: formData.location,
         category: formData.category,
         tastes: formData.tastes,
+        ...(typeof formData.price === 'number' && !Number.isNaN(formData.price) ? { price: formData.price } : {}),
         ingredients: formData.ingredients,
         nutrition: formData.nutrition,
         ...(formData.imageUrl ? { imageUrl: formData.imageUrl } : {}),
@@ -534,6 +542,23 @@ export default function EditMenu() {
                   ))}
                 </select>
               </div>
+            </div>
+
+            {/* Price */}
+            <div>
+              <label htmlFor="menuPrice" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                ราคา (บาท)
+              </label>
+              <input
+                type="number"
+                id="menuPrice"
+                min={0}
+                step={1}
+                value={typeof formData.price === 'number' ? formData.price : ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value === '' ? undefined : Number(e.target.value) }))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                placeholder="เช่น 50"
+              />
             </div>
 
             {/* Tastes */}

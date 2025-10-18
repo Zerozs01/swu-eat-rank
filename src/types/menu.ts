@@ -1,6 +1,6 @@
 export type Location = 'ENG_CANTEEN' | 'HEALTH_CANTEEN' | 'DORM_CANTEEN';
 export type Category = 'RICE' | 'NOODLE' | 'FRIED' | 'DESSERT' | 'DRINK';
-export type Taste = 'SWEET' | 'OILY' | 'SPICY' | 'SOUR' | 'BLAND';
+export type Taste = 'SWEET' | 'OILY' | 'SPICY' | 'SOUR' | 'BLAND' | 'SALTY';
 export type Cooking = 'FRY' | 'BOIL' | 'STEAM' | 'STIR';
 
 export interface Menu {
@@ -12,6 +12,7 @@ export interface Menu {
   tastes: Taste[];
   imageUrl?: string;    // public download URL for display
   imagePath?: string;   // storage path for delete/maintenance
+  price?: number;       // THB, whole number or decimal
   ingredients: {
     veggies?: string[];
     proteins?: string[];
