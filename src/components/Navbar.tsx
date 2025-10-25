@@ -86,17 +86,19 @@ export default function Navbar() {
               <span>Popular</span>
             </Link>
             
-            <Link
-              to="/admin"
-              className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                isActive('/admin')
-                  ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
-                  : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
-            >
-              <span>🔧</span>
-              <span>Admin</span>
-            </Link>
+            {isAdmin && (
+              <Link
+                to="/admin"
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                  isActive('/admin')
+                    ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
+                    : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
+                }`}
+              >
+                <span>🔧</span>
+                <span>Admin</span>
+              </Link>
+            )}
             
             {user && userProfile?.email ? (
               <>
@@ -172,7 +174,7 @@ export default function Navbar() {
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 border-t border-gray-200 dark:border-gray-700">
               <Link
                 to="/"
-                className={`flex items-center space-x-2 block px-3 py-2 rounded-md text-base font-medium ${
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium ${
                   isActive('/')
                     ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
                     : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -184,7 +186,7 @@ export default function Navbar() {
               
               <Link
                 to="/search"
-                className={`flex items-center space-x-2 block px-3 py-2 rounded-md text-base font-medium ${
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium ${
                   isActive('/search')
                     ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
                     : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -196,7 +198,7 @@ export default function Navbar() {
               
               <Link
                 to="/board"
-                className={`flex items-center space-x-2 block px-3 py-2 rounded-md text-base font-medium ${
+                className={`flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium ${
                   isActive('/board')
                     ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
                     : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -206,29 +208,46 @@ export default function Navbar() {
                 <span>Popular</span>
               </Link>
               
-              <Link
-                to="/admin"
-                className={`flex items-center space-x-2 block px-3 py-2 rounded-md text-base font-medium ${
-                  isActive('/admin')
-                    ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
-                    : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-              >
-                <span>🔧</span>
-                <span>Admin</span>
-              </Link>
+              {isAdmin && (
+                <Link
+                  to="/admin"
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium ${
+                    isActive('/admin')
+                      ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  <span>🔧</span>
+                  <span>Admin</span>
+                </Link>
+              )}
               
-              <Link
-                to="/me"
-                className={`flex items-center space-x-2 block px-3 py-2 rounded-md text-base font-medium ${
-                  isActive('/me')
-                    ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
-                    : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
-                }`}
-              >
-                <UserIcon className="w-4 h-4" />
-                <span>ฉัน</span>
-              </Link>
+              {user && userProfile?.email ? (
+                <Link
+                  to="/me"
+                  className={`flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium ${
+                    isActive('/me')
+                      ? 'bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-300'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  <UserIcon className="w-4 h-4" />
+                  <span>{userProfile.displayName || 'ฉัน'}</span>
+                </Link>
+              ) : (
+                <div className="px-3 py-3 rounded-lg bg-gray-50 dark:bg-gray-800/60 text-gray-700 dark:text-gray-200 space-y-2">
+                  
+                  <div className="text-sm leading-relaxed">เข้าสู่ระบบเพื่อดู หรือ บันทึก ประวัติการกิน</div>
+                  <div className="pt-1">
+                    <button
+                      onClick={() => setIsLoginModalOpen(true)}
+                      className="w-full px-3 py-2 rounded-md text-sm font-medium bg-primary-600 hover:bg-primary-700 text-white transition-colors"
+                    >
+                      เข้าสู่ระบบ
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
