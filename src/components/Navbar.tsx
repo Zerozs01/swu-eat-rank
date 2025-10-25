@@ -59,7 +59,7 @@ export default function Navbar() {
               }`}
             >
               <HomeIcon className="w-4 h-4" />
-              <span>Homepage</span>
+              <span>Home</span>
             </Link>
             
             <Link
@@ -71,7 +71,7 @@ export default function Navbar() {
               }`}
             >
               <SearchIcon className="w-4 h-4" />
-              <span>Find Menu</span>
+              <span>Menu List</span>
             </Link>
             
             <Link
@@ -179,7 +179,7 @@ export default function Navbar() {
                 }`}
               >
                 <HomeIcon className="w-4 h-4" />
-                <span>หน้าแรก</span>
+                <span>Home</span>
               </Link>
               
               <Link
@@ -191,7 +191,7 @@ export default function Navbar() {
                 }`}
               >
                 <SearchIcon className="w-4 h-4" />
-                <span>ค้นหาเมนู</span>
+                <span>Menu List</span>
               </Link>
               
               <Link
@@ -203,7 +203,7 @@ export default function Navbar() {
                 }`}
               >
                 <ChartIcon className="w-4 h-4" />
-                <span>กระดานรวม</span>
+                <span>Popular</span>
               </Link>
               
               <Link
