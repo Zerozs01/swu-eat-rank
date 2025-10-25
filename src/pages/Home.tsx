@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMenus } from '../hooks/useMenus';
-import { LOCATIONS, CATEGORIES } from '../constants/enums';
+import { LOCATIONS, CATEGORIES, TASTES } from '../constants/enums';
 import { SearchIcon } from '../components/icons';
-import type { Location, Category, Menu } from '../types/menu';
+import type { Location, Category, Menu, Taste } from '../types/menu';
 import MenuCard from '../components/MenuCard';
 import { suggestByContext, type EnergyLevel } from '../utils/contextSuggest';
 
@@ -11,6 +11,7 @@ export default function Home() {
   const navigate = useNavigate();
   const [selectedLocation, setSelectedLocation] = useState<Location | ''>('');
   const [selectedCategory, setSelectedCategory] = useState<Category | ''>('');
+  const [selectedTaste, setSelectedTaste] = useState<Taste | ''>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isRandomizing, setIsRandomizing] = useState(false);
   // Context-based selectors
@@ -24,6 +25,13 @@ export default function Home() {
   const [showBudget, setShowBudget] = useState(false);
   
   const { menus } = useMenus();
+  // Real-time filtered menus based on search + location/category/taste (like Search page)
+  const { menus: typedMenus } = useMenus({
+    location: selectedLocation || undefined,
+    category: selectedCategory || undefined,
+    tastes: selectedTaste ? [selectedTaste] : undefined,
+    searchTerm: searchTerm || undefined,
+  });
   const priceBounds = useMemo(() => {
     const prices = (menus || []).map(m => m.price).filter((v): v is number => typeof v === 'number');
     if (prices.length === 0) return { min: 0, max: 100 };
@@ -36,6 +44,14 @@ export default function Home() {
     const pmax = priceMax === '' ? null : priceMax;
     return suggestByContext(menus, { energy, cleanLevel, priceMin: pmin, priceMax: pmax }).slice(0, 6);
   }, [menus, energy, cleanLevel, priceMin, priceMax]);
+
+  // When user types, restrict results strictly to matches + context filters
+  const searchResults = useMemo(() => {
+    const base = typedMenus || [];
+    const pmin = priceMin === '' ? null : priceMin;
+    const pmax = priceMax === '' ? null : priceMax;
+    return suggestByContext(base, { energy, cleanLevel, priceMin: pmin, priceMax: pmax });
+  }, [typedMenus, energy, cleanLevel, priceMin, priceMax]);
 
   const handleRandomMenu = () => {
     if (!menus || menus.length === 0) return;
@@ -70,34 +86,37 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-gray-900 dark:to-gray-800">
-      <div className="container mx-auto px-4 py-16">
+      <div className="container mx-auto px-4 py-6">
         <div className="max-w-4xl mx-auto">
          
 
           {/* Search Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 mb-12">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-2">
-                Find Menu You Want
-              </h2>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 mb-10">
+            {/* <div className="text-center mb-8"> */}
+              {/* <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-2"> */}
+                {/* Find Menu You Want */}
+              {/* </h2> */}
               <p className="text-gray-600 dark:text-gray-300">
-                ค้นหาและกรองเมนูตามโรงอาหาร ประเภท และรสชาติ
+                {/* ค้นหาและกรองเมนูตามโรงอาหาร ประเภท และรสชาติ */}
               </p>
-            </div>
+            {/* </div> */}
             
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
+            {/* Row 1: Full-width search on desktop */}
+            <div className="mb-4">
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="ค้นหาชื่อเมนูหรือร้าน..."
-                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
               />
-              
+            </div>
+            {/* Row 2: Filters (location, category, taste) */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <select
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value as Location | '')}
-                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
                 aria-label="เลือกโรงอาหาร"
               >
                 <option value="">ทุกโรงอาหาร</option>
@@ -105,15 +124,25 @@ export default function Home() {
                   <option key={key} value={key}>{value}</option>
                 ))}
               </select>
-              
               <select
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value as Category | '')}
-                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
                 aria-label="เลือกประเภทอาหาร"
               >
                 <option value="">ทุกประเภท</option>
                 {Object.entries(CATEGORIES).map(([key, value]) => (
+                  <option key={key} value={key}>{value}</option>
+                ))}
+              </select>
+              <select
+                value={selectedTaste}
+                onChange={(e) => setSelectedTaste(e.target.value as Taste | '')}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
+                aria-label="เลือกรสชาติ"
+              >
+                <option value="">ทุกรสชาติ</option>
+                {Object.entries(TASTES).map(([key, value]) => (
                   <option key={key} value={key}>{value}</option>
                 ))}
               </select>
@@ -123,9 +152,10 @@ export default function Home() {
               <button
                 onClick={() => navigate('/search', { 
                   state: { 
-                    searchTerm, 
-                    location: selectedLocation, 
-                    category: selectedCategory 
+                    searchTerm,
+                    location: selectedLocation,
+                    category: selectedCategory,
+                    taste: selectedTaste
                   } 
                 })}
                 className="flex-1 flex items-center justify-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white py-3 px-6 rounded-lg transition-colors"
@@ -274,19 +304,19 @@ export default function Home() {
             )}
           </div>
 
-          {/* Suggestions */}
+          {/* Suggestions / Search Results */}
           <div className="mt-8">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xl font-semibold text-gray-800 dark:text-white">ผลลัพธ์แนะนำ</h3>
+              <h3 className="text-xl font-semibold text-gray-800 dark:text-white">{searchTerm.trim() ? 'ผลการค้นหา' : 'ผลลัพธ์แนะนำ'}</h3>
               <button type="button" className="text-sm text-gray-600 dark:text-gray-300 hover:underline"
                 onClick={() => { setEnergy(null); setCleanLevel(null); setPriceMin(''); setPriceMax(''); }}
               >ล้างตัวเลือก</button>
             </div>
-            {contextSuggestions.length === 0 ? (
-              <div className="text-gray-500 dark:text-gray-400">ยังไม่มีเมนูที่เข้าเงื่อนไข ลองปรับตัวเลือกด้านบน</div>
+            {(searchTerm.trim() ? searchResults : contextSuggestions).length === 0 ? (
+              <div className="text-gray-500 dark:text-gray-400">ไม่พบเมนูที่ตรงกับเงื่อนไข</div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {contextSuggestions.map((menu) => (
+                {(searchTerm.trim() ? searchResults : contextSuggestions).map((menu) => (
                   <div key={menu.id} className="flex flex-col">
                     <MenuCard menu={menu} />
                     <div className="mt-2 flex gap-2">
