@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMenus } from '../hooks/useMenus';
 import { LOCATIONS, CATEGORIES, TASTES } from '../constants/enums';
-import { SearchIcon } from '../components/icons';
+// import { SearchIcon } from '../components/icons';
 import type { Location, Category, Menu, Taste } from '../types/menu';
 import MenuCard from '../components/MenuCard';
 import { suggestByContext, type EnergyLevel } from '../utils/contextSuggest';
@@ -66,6 +66,9 @@ export default function Home() {
     if (selectedCategory) {
       filteredMenus = filteredMenus.filter(menu => menu.category === selectedCategory);
     }
+    if (selectedTaste) {
+      filteredMenus = filteredMenus.filter(menu => menu.tastes.includes(selectedTaste));
+    }
     
     if (filteredMenus.length === 0) {
       alert('ไม่พบเมนูที่ตรงกับเงื่อนไขที่เลือก');
@@ -87,11 +90,10 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-gray-900 dark:to-gray-800">
       <div className="container mx-auto px-4 py-6">
-        <div className="max-w-4xl mx-auto">
          
 
           {/* Search Section */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 mb-10">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 mb-5">
             {/* <div className="text-center mb-8"> */}
               {/* <h2 className="text-2xl font-semibold text-gray-800 dark:text-white mb-2"> */}
                 {/* Find Menu You Want */}
@@ -111,8 +113,8 @@ export default function Home() {
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 dark:bg-gray-700 dark:text-white"
               />
             </div>
-            {/* Row 2: Filters (location, category, taste) */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            {/* Row 2: Filters + Random (desktop: 1 row, mobile: 2 rows) */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-0">
               <select
                 value={selectedLocation}
                 onChange={(e) => setSelectedLocation(e.target.value as Location | '')}
@@ -146,166 +148,151 @@ export default function Home() {
                   <option key={key} value={key}>{value}</option>
                 ))}
               </select>
-            </div>
-            
-            <div className="flex gap-4">
-              <button
-                onClick={() => navigate('/search', { 
-                  state: { 
-                    searchTerm,
-                    location: selectedLocation,
-                    category: selectedCategory,
-                    taste: selectedTaste
-                  } 
-                })}
-                className="flex-1 flex items-center justify-center space-x-2 bg-primary-600 hover:bg-primary-700 text-white py-3 px-6 rounded-lg transition-colors"
-              >
-                <SearchIcon className="w-5 h-5" />
-                <span>ค้นหาตาม Filter</span>
-              </button>
-              
               <button
                 onClick={handleRandomMenu}
                 disabled={isRandomizing}
-                className="flex-1 flex items-center justify-center space-x-2 bg-secondary-600 hover:bg-secondary-700 disabled:bg-gray-400 text-white py-3 px-6 rounded-lg transition-colors"
+                className="w-full flex items-center justify-center space-x-2 bg-secondary-600 hover:bg-secondary-700 disabled:bg-gray-400 text-white py-3 px-6 rounded-lg transition-colors"
               >
-               
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
-  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-</svg>
-
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
                 <span>{isRandomizing ? 'กำลังสุ่ม...' : 'สุ่มเมนู'}</span>
               </button>
             </div>
           </div>
 
-          {/* Energy Level (Collapsible) */}
-          <div className="mt-10">
-            <button
-              type="button"
-              onClick={() => setShowEnergy(v => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm"
-            >
-              <div className="text-left">
-                <div className="text-lg font-semibold text-gray-800 dark:text-white">ระดับความหิว</div>
-                <div className="text-xs text-gray-600 dark:text-gray-300">
-                  {energy === 'snack' && 'ของว่าง / เมนูเบา ๆ'}
-                  {energy === 'medium' && 'มื้อเบา / อิ่มพอดี'}
-                  {energy === 'full' && 'อาหารมื้อหลัก'}
-                  {!energy && 'ยังไม่เลือก'}
+          {/* Special Filters: Energy, Clean, Budget in one row */}
+          <div className="mt-4 grid grid-cols-3 gap-3">
+            {/* Energy */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowEnergy(v => !v)}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm"
+              >
+                <div className="text-left">
+                  <div className="text-sm font-semibold text-gray-800 dark:text-white">พลังงาน</div>
+                  <div className="text-[11px] text-gray-600 dark:text-gray-300 truncate">
+                    {energy === 'snack' && 'ของว่าง / เมนูเบา ๆ'}
+                    {energy === 'medium' && 'มื้อเบา / อิ่มพอดี'}
+                    {energy === 'full' && 'อาหารมื้อหลัก'}
+                    {!energy && 'ยังไม่เลือก'}
+                  </div>
                 </div>
-              </div>
-              <svg className={`w-5 h-5 text-gray-500 transition-transform ${showEnergy ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd"/></svg>
-            </button>
-            {showEnergy && (
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-                {([
-                  { id: 'snack', label: 'ของว่าง / เมนูเบา ๆ', desc: 'ช่วงบ่าย / ก่อนเรียน (แคลอรี่ < 250)', icon: '🍪' },
-                  { id: 'medium', label: 'มื้อเบา / อิ่มพอดี', desc: 'พักเที่ยงทั่วไป (250–500 kcal)', icon: '🍛' },
-                  { id: 'full', label: 'อาหารมื้อหลัก', desc: 'โปรตีน+คาร์บอิ่มยาว (>500 kcal)', icon: '🍽️' },
-                ] as Array<{ id: EnergyLevel; label: string; desc: string; icon: string }>).map((opt) => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setEnergy(energy === opt.id ? null : opt.id)}
-                    className={`rounded-2xl p-6 text-left shadow-lg transition transform hover:-translate-y-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${energy===opt.id ? 'ring-2 ring-primary-500' : ''} bg-white dark:bg-gray-800`}
-                  >
-                    <div className="text-2xl mb-2">{opt.icon}</div>
-                    <div className="text-lg font-bold mb-1 text-gray-900 dark:text-white">{opt.label}</div>
-                    <div className="text-sm text-gray-600 dark:text-gray-300">{opt.desc}</div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+                <svg className={`w-4 h-4 text-gray-500 transition-transform ${showEnergy ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd"/></svg>
+              </button>
+              {showEnergy && (
+                <div className="mt-2 grid grid-cols-1 gap-2">
+                  {([
+                    { id: 'snack', label: 'ของว่าง / เมนูเบา ๆ', desc: 'แคล < 250', icon: '🍪' },
+                    { id: 'medium', label: 'มื้อเบา / อิ่มพอดี', desc: '250–500 kcal', icon: '🍛' },
+                    { id: 'full', label: 'อาหารมื้อหลัก', desc: '>500 kcal', icon: '🍽️' },
+                  ] as Array<{ id: EnergyLevel; label: string; desc: string; icon: string }>).map((opt) => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setEnergy(energy === opt.id ? null : opt.id)}
+                      className={`rounded-lg p-3 text-left border shadow-sm transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${energy===opt.id ? 'ring-2 ring-primary-500' : ''} bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{opt.icon}</span>
+                        <span className="text-sm font-semibold text-gray-900 dark:text-white">{opt.label}</span>
+                      </div>
+                      <div className="text-[11px] text-gray-600 dark:text-gray-300 mt-1">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          {/* Clean Intensity (Collapsible) */}
-          <div className="mt-8">
-            <button
-              type="button"
-              onClick={() => setShowClean(v => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm"
-            >
-              <div className="text-left">
-                <div className="text-lg font-semibold text-gray-800 dark:text-white">อาหารคลีน</div>
-                <div className="text-xs text-gray-600 dark:text-gray-300">
-                  {cleanLevel === 1 && '🥦 คลีนเบา'}
-                  {cleanLevel === 2 && '🥗 คลีนปานกลาง'}
-                  {cleanLevel === 3 && '🌿 คลีนล้วน'}
-                  {!cleanLevel && 'ไม่จำกัดความคลีน'}
+            {/* Clean */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowClean(v => !v)}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm"
+              >
+                <div className="text-left">
+                  <div className="text-sm font-semibold text-gray-800 dark:text-white">อาหารคลีน</div>
+                  <div className="text-[11px] text-gray-600 dark:text-gray-300 truncate">
+                    {cleanLevel === 1 && '🥦 คลีนเบา'}
+                    {cleanLevel === 2 && '🥗 คลีนปานกลาง'}
+                    {cleanLevel === 3 && '🌿 คลีนล้วน'}
+                    {!cleanLevel && 'ไม่จำกัดความคลีน'}
+                  </div>
                 </div>
-              </div>
-              <svg className={`w-5 h-5 text-gray-500 transition-transform ${showClean ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd"/></svg>
-            </button>
-            {showClean && (
-              <div className="mt-4 flex gap-3">
-                {([
-                  { id: 1 as const, label: '🥦 คลีนเบา' },
-                  { id: 2 as const, label: '🥗 คลีนปานกลาง' },
-                  { id: 3 as const, label: '🌿 คลีนล้วน' },
-                ]).map(opt => (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setCleanLevel(cleanLevel===opt.id ? null : opt.id)}
-                    className={`px-4 py-2 rounded-lg border shadow-sm transition ${cleanLevel===opt.id ? 'bg-primary-600 text-white border-primary-600' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+                <svg className={`w-4 h-4 text-gray-500 transition-transform ${showClean ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd"/></svg>
+              </button>
+              {showClean && (
+                <div className="mt-2 flex flex-col gap-2">
+                  {([
+                    { id: 1 as const, label: '🥦 คลีนเบา' },
+                    { id: 2 as const, label: '🥗 คลีนปานกลาง' },
+                    { id: 3 as const, label: '🌿 คลีนล้วน' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setCleanLevel(cleanLevel===opt.id ? null : opt.id)}
+                      className={`px-3 py-2 rounded-lg border shadow-sm text-sm transition ${cleanLevel===opt.id ? 'bg-primary-600 text-white border-primary-600' : 'bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600'}`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          {/* Budget (Collapsible) */}
-          <div className="mt-8">
-            <button
-              type="button"
-              onClick={() => setShowBudget(v => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm"
-            >
-              <div className="text-left">
-                <div className="text-lg font-semibold text-gray-800 dark:text-white">Budget Menu</div>
-                <div className="text-xs text-gray-600 dark:text-gray-300">
-                  {(priceMin !== '' || priceMax !== '')
-                    ? `ช่วงราคา: ${priceMin === '' ? '-' : priceMin} – ${priceMax === '' ? '-' : priceMax} บาท`
-                    : 'ไม่จำกัดงบประมาณ'}
+            {/* Budget */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowBudget(v => !v)}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 shadow-sm"
+              >
+                <div className="text-left">
+                  <div className="text-sm font-semibold text-gray-800 dark:text-white">Budget</div>
+                  <div className="text-[11px] text-gray-600 dark:text-gray-300 truncate">
+                    {(priceMin !== '' || priceMax !== '')
+                      ? `ช่วง: ${priceMin === '' ? '-' : priceMin} – ${priceMax === '' ? '-' : priceMax} บ.`
+                      : 'ไม่จำกัดงบประมาณ'}
+                  </div>
                 </div>
-              </div>
-              <svg className={`w-5 h-5 text-gray-500 transition-transform ${showBudget ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd"/></svg>
-            </button>
-            {showBudget && (
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                <div>
-                  <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">ต่ำสุด (บาท)</label>
-                  <input type="number" min={priceBounds.min} max={priceBounds.max}
-                    value={priceMin}
-                    onChange={(e) => setPriceMin(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                    aria-label="งบประมาณต่ำสุด"
-                  />
+                <svg className={`w-4 h-4 text-gray-500 transition-transform ${showBudget ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd"/></svg>
+              </button>
+              {showBudget && (
+                <div className="mt-2 grid grid-cols-1 gap-2">
+                  <div>
+                    <label className="block text-[11px] text-gray-600 dark:text-gray-300 mb-1">ต่ำสุด (บาท)</label>
+                    <input type="number" min={priceBounds.min} max={priceBounds.max}
+                      value={priceMin}
+                      onChange={(e) => setPriceMin(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm"
+                      aria-label="งบประมาณต่ำสุด"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-600 dark:text-gray-300 mb-1">สูงสุด (บาท)</label>
+                    <input type="number" min={priceBounds.min} max={priceBounds.max}
+                      value={priceMax}
+                      onChange={(e) => setPriceMax(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white text-sm"
+                      aria-label="งบประมาณสูงสุด"
+                    />
+                  </div>
+                  <div className="text-[11px] text-gray-600 dark:text-gray-300">
+                    <div>ช่วงราคาโดยรวม: {priceBounds.min} – {priceBounds.max} บาท</div>
+                    {menus && (
+                      <div className="mt-1">มี {suggestByContext(menus, { energy, cleanLevel, priceMin: priceMin === '' ? null : priceMin, priceMax: priceMax === '' ? null : priceMax }).length} เมนูในงบนี้</div>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">สูงสุด (บาท)</label>
-                  <input type="number" min={priceBounds.min} max={priceBounds.max}
-                    value={priceMax}
-                    onChange={(e) => setPriceMax(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                    aria-label="งบประมาณสูงสุด"
-                  />
-                </div>
-                <div className="text-gray-600 dark:text-gray-300">
-                  <div className="text-sm">ช่วงราคาโดยรวม: {priceBounds.min} – {priceBounds.max} บาท</div>
-                  {menus && (
-                    <div className="text-sm mt-1">มี {suggestByContext(menus, { energy, cleanLevel, priceMin: priceMin === '' ? null : priceMin, priceMax: priceMax === '' ? null : priceMax }).length} เมนูในงบนี้</div>
-                  )}
-                </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Suggestions / Search Results */}
-          <div className="mt-8">
+          <div className="mt-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xl font-semibold text-gray-800 dark:text-white">{searchTerm.trim() ? 'ผลการค้นหา' : 'ผลลัพธ์แนะนำ'}</h3>
               <button type="button" className="text-sm text-gray-600 dark:text-gray-300 hover:underline"
@@ -338,7 +325,6 @@ export default function Home() {
               </div>
             )}
           </div>
-        </div>
       </div>
     </div>
   );
