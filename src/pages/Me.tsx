@@ -308,15 +308,28 @@ export default function Me() {
             </div>
 
             {/* Budget summary (linked to วัน/สัปดาห์/เดือน filter) */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-1">
-                <div className="text-sm text-gray-700 dark:text-gray-300">งบที่ใช้</div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {metricTime==='day' ? 'รายวัน' : metricTime==='week' ? 'รายสัปดาห์' : 'รายเดือน'}
+            <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-sm text-gray-700 dark:text-gray-300">งบที่ใช้</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {metricTime==='day' ? 'รายวัน' : metricTime==='week' ? 'รายสัปดาห์' : 'รายเดือน'}
+                  </div>
+                </div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {metricStats.budgetTotal.toLocaleString('th-TH', { maximumFractionDigits: 0 })} บาท
                 </div>
               </div>
-              <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                {metricStats.budgetTotal.toLocaleString('th-TH', { maximumFractionDigits: 0 })} บาท
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <div className="text-sm text-gray-700 dark:text-gray-300">งบเฉลี่ยต่อมื้อ</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    {metricTime==='day' ? 'รายวัน' : metricTime==='week' ? 'รายสัปดาห์' : 'รายเดือน'}
+                  </div>
+                </div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {(metricStats.totalMeals ? Math.round(metricStats.budgetTotal / metricStats.totalMeals) : 0).toLocaleString('th-TH', { maximumFractionDigits: 0 })} บาท
+                </div>
               </div>
             </div>
 

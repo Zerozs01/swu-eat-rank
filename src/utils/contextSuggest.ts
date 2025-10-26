@@ -7,18 +7,17 @@ export type EnergyLevel = 'snack' | 'medium' | 'full';
 export function filterByEnergy(menus: Menu[], level: EnergyLevel): Menu[] {
   return menus.filter((m) => {
     const cal = m.nutrition?.cal ?? 0;
-    const proteins = m.ingredients.proteins?.length ?? 0;
-    const sIdx = satietyIndex(m);
+    // Relax constraints to focus on energy only so new menus are not excluded by protein/satiety heuristics
     switch (level) {
       case 'snack':
-        // light snacks/drinks/desserts, kcal < 250
-        return cal > 0 && cal < 250 && (m.category === 'DESSERT' || m.category === 'DRINK');
+        // Light items: kcal < 250 (any category)
+        return cal > 0 && cal < 250;
       case 'medium':
-        // 250–500 kcal and reasonably healthy
-        return cal >= 250 && cal <= 500 && calcHealthScore(m) >= 60;
+        // 250–500 kcal
+        return cal >= 250 && cal <= 500;
       case 'full':
-        // full meal: >500 kcal, has protein, satiety index high
-        return cal > 500 && proteins >= 1 && sIdx >= 0.7;
+        // Full meal: >500 kcal
+        return cal > 500;
       default:
         return true;
     }
