@@ -3,13 +3,14 @@ import { useUserLogs } from '../hooks/useLogs';
 import { useMenus } from '../hooks/useMenus';
 import { calcHealthScore } from '../utils/healthScore';
 import LogCard from '../components/LogCard';
+import { EnhancedMealHistory } from '../components/meal/EnhancedMealHistory';
 import { useAuth } from '../contexts/AuthContext';
-import type { Log, Menu, Taste } from '../types/menu';
+import type { Log, Menu, Taste, LogWithMenu, Badge } from '../types/menu';
 import HealthOverview, { type Dimension, type TimeRange } from '../components/health/HealthOverview';
+import { OptimizedHealthSummary } from '../components/health/OptimizedHealthSummary';
+import { BadgeCollection, EnhancedBadge } from '../components/badges/EnhancedBadge';
+import { checkBadgeEligibility, getBadgesByCategory, sortBadges, calculateUserStats } from '../utils/badgeSystem';
 
-interface LogWithMenu extends Log {
-  menu?: Menu; // Menu data
-}
 
 export default function Me() {
   const { user, userProfile } = useAuth();
@@ -17,6 +18,9 @@ export default function Me() {
   const { menus: allMenus, error: menusError } = useMenus();
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all'>('today');
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'private'>('all');
+  const [activeBadgeTab, setActiveBadgeTab] = useState<'all' | 'streaks' | 'meals' | 'health' | 'nutrition'>('all');
+  const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
+  
   // Pie controls
   const [pieTime, setPieTime] = useState<TimeRange>('day');
   const [pieDim, setPieDim] = useState<Dimension>('category');
@@ -163,10 +167,25 @@ export default function Me() {
     return { avgScore, totalMeals, totalQuantity, streakDays, publicLogs, privateLogs };
   }, [filteredLogsWithMenus]);
 
-  // Calculate badges
+  // Enhanced badge calculation
+  const allUserLogs = useMemo<LogWithMenu[]>(() => {
+    if (!userLogs || !allMenus) return [];
+    return userLogs
+      .map(log => ({ ...log, menu: allMenus.find(m => m.id === log.menuId) }))
+      .filter((l): l is LogWithMenu & { menu: Menu } => Boolean(l.menu));
+  }, [userLogs, allMenus]);
+
+  const userStats = useMemo(() => calculateUserStats(allUserLogs), [allUserLogs]);
+
+  // Enhanced badge calculation with original logic
+  const allBadges = useMemo(() => checkBadgeEligibility(userStats, allUserLogs), [userStats, allUserLogs]);
+  const sortedBadges = useMemo(() => sortBadges(allBadges), [allBadges]);
+  const categorizedBadges = useMemo(() => getBadgesByCategory(allBadges), [allBadges]);
+
+  // Legacy badges for compatibility
   const badges = useMemo(() => {
     const { avgScore, totalMeals, streakDays } = healthStats;
-    
+
     return [
       {
         id: 'healthy-week',
@@ -235,260 +254,143 @@ export default function Me() {
           )}
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Health Overview with Pie */}
-          <HealthOverview
-            logs={pieLogs}
-            timeRange={pieTime}
-            onChangeTimeRange={setPieTime}
-            dimension={pieDim}
-            onChangeDimension={setPieDim}
-            onSliceClick={(dim, key) => {
-              setHistoryFocus({ dim, key });
-              setTimeout(() => historyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-            }}
+        {/* Optimized Health Summary */}
+        <OptimizedHealthSummary
+          logs={allUserLogs}
+          goals={userProfile?.goals}
+          timeRange={metricTime}
+          onTimeRangeChange={(range) => setMetricTime(range as 'day' | 'week' | 'month')}
+          userId={user?.id}
+        />
+
+        {/* Enhanced Badge System */}
+        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">🏆 เหรียญตราของคุณ (AI-Powered)</h2>
+            <div className="text-sm text-gray-500">
+              ได้รับ {allBadges.filter(b => b.isEarned).length} / {allBadges.length} เหรียญตรา
+            </div>
+          </div>
+
+          {/* Badge category tabs */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            {[
+              { id: 'all', label: 'ทั้งหมด', count: allBadges.length },
+              { id: 'streaks', label: 'สตรีค', count: categorizedBadges.streaks.length },
+              { id: 'meals', label: 'มื้ออาหาร', count: categorizedBadges.meals.length },
+              { id: 'health', label: 'สุขภาพ', count: categorizedBadges.health.length },
+              { id: 'nutrition', label: 'โภชนาการ', count: categorizedBadges.nutrition.length }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveBadgeTab(tab.id as any)}
+                className={`
+                  px-4 py-2 rounded-lg text-sm font-medium transition-all
+                  ${activeBadgeTab === tab.id
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }
+                `}
+              >
+                {tab.label}
+                <span className="ml-2 text-xs bg-gray-200 bg-opacity-30 px-2 py-1 rounded-full">
+                  {tab.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Get filtered badges based on active tab */}
+          {(() => {
+            const displayedBadges = activeBadgeTab === 'all' ? sortedBadges :
+              activeBadgeTab === 'streaks' ? categorizedBadges.streaks :
+              activeBadgeTab === 'meals' ? categorizedBadges.meals :
+              activeBadgeTab === 'health' ? categorizedBadges.health :
+              categorizedBadges.nutrition;
+
+            return (
+              <BadgeCollection
+                badges={displayedBadges}
+                showProgress={true}
+                maxBadgesPerRow={4}
+                onBadgeClick={(badge) => setSelectedBadge(badge)}
+              />
+            );
+          })()}
+        </div>
+
+        {/* User Stats Summary */}
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-500">สตรีคปัจจุบัน</div>
+                <div className="text-2xl font-bold text-orange-600">{userStats.currentStreak}</div>
+              </div>
+              <div className="text-3xl">🔥</div>
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-500">สตรีคยาวสุด</div>
+                <div className="text-2xl font-bold text-purple-600">{userStats.longestStreak}</div>
+              </div>
+              <div className="text-3xl">🏆</div>
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-500">มื้อผัก</div>
+                <div className="text-2xl font-bold text-green-600">{userStats.veggieMeals}</div>
+              </div>
+              <div className="text-3xl">🥬</div>
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm text-gray-500">มื้อโปรตีน</div>
+                <div className="text-2xl font-bold text-red-600">{userStats.proteinMeals}</div>
+              </div>
+              <div className="text-3xl">🥩</div>
+            </div>
+          </div>
+        </div>
+  
+        {/* Enhanced Meal History */}
+        {!isLoading && !logsError && !menusError && (
+          <EnhancedMealHistory
+            logs={filteredLogsWithMenus}
+            onHistoryFocus={(dim, key) => setHistoryFocus({ dim: dim as Dimension, key })}
           />
+        )}
 
-          {/* Metrics + Badges */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-800 dark:text-white">สถิติ & แบดจ์</h2>
-              <div className="flex gap-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
-                {(['day','week','month'] as TimeRange[]).map(t => (
-                  <button
-                    key={t}
-                    onClick={() => setMetricTime(t)}
-                    className={`px-2 py-1 rounded-md text-sm ${metricTime===t ? 'bg-blue-600 text-white' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
-                  >
-                    {t==='day'?'วัน':t==='week'?'สัปดาห์':'เดือน'}
-                  </button>
-                ))}
+        {/* Loading and Error States */}
+        {(isLoading || logsError || menusError) && (
+          <div ref={historyRef} className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            {isLoading && (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                <p className="text-gray-600">กำลังโหลดประวัติ...</p>
               </div>
-            </div>
+            )}
 
-            {/* Metric grid */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/40">
-                <div className="text-sm text-gray-600 dark:text-gray-300">คะแนนสุขภาพเฉลี่ย</div>
-                <div className={`text-2xl font-bold ${
-                  metricStats.avgScore >= 80 ? 'text-green-600' :
-                  metricStats.avgScore >= 60 ? 'text-yellow-600' :
-                  metricStats.avgScore >= 40 ? 'text-orange-600' : 'text-red-600'
-                }`}>{metricStats.avgScore}</div>
+            {(logsError || menusError) && (
+              <div className="text-center py-8">
+                <p className="text-red-600 mb-2">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
+                <p className="text-sm text-gray-500">
+                  {logsError && `Logs: ${logsError.message}`}
+                  {menusError && `Menus: ${menusError.message}`}
+                </p>
               </div>
-              <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/40">
-                <div className="text-sm text-gray-600 dark:text-gray-300">มื้อที่บันทึก</div>
-                <div className="text-2xl font-bold text-blue-600">{metricStats.totalMeals}</div>
-              </div>
-              <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/40">
-                <div className="text-sm text-gray-600 dark:text-gray-300">จำนวนจานรวม</div>
-                <div className="text-2xl font-bold text-indigo-600">{metricStats.totalQuantity}</div>
-              </div>
-              <div className="p-4 rounded-lg bg-gray-50 dark:bg-gray-900/40">
-                <div className="text-sm text-gray-600 dark:text-gray-300 mb-1">สาธารณะ / ส่วนตัว</div>
-                <div className="flex items-center gap-2">
-                  {/* 10 segments: น้ำเงิน=สาธารณะ, ส้ม=ส่วนตัว */}
-                  {(() => {
-                    const total = metricStats.publicLogs + metricStats.privateLogs || 1;
-                    const totalSegs = 10;
-                    const pubSegs = Math.round((metricStats.publicLogs / total) * totalSegs);
-                    return (
-                      <div className="flex-1 flex gap-0.5">
-                        {Array.from({ length: totalSegs }).map((_, i) => (
-                          <div key={i} className={`h-2 flex-1 rounded-sm ${i < pubSegs ? 'bg-blue-500' : 'bg-orange-500'}`} />
-                        ))}
-                      </div>
-                    );
-                  })()}
-                  <div className="text-xs text-gray-600 dark:text-gray-300 whitespace-nowrap">
-                    {metricStats.publicLogs} / {metricStats.privateLogs}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Budget summary (linked to วัน/สัปดาห์/เดือน filter) */}
-            <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="text-sm text-gray-700 dark:text-gray-300">งบที่ใช้</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {metricTime==='day' ? 'รายวัน' : metricTime==='week' ? 'รายสัปดาห์' : 'รายเดือน'}
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {metricStats.budgetTotal.toLocaleString('th-TH', { maximumFractionDigits: 0 })} บาท
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="text-sm text-gray-700 dark:text-gray-300">งบเฉลี่ยต่อมื้อ</div>
-                  <div className="text-xs text-gray-500 dark:text-gray-400">
-                    {metricTime==='day' ? 'รายวัน' : metricTime==='week' ? 'รายสัปดาห์' : 'รายเดือน'}
-                  </div>
-                </div>
-                <div className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {(metricStats.totalMeals ? Math.round(metricStats.budgetTotal / metricStats.totalMeals) : 0).toLocaleString('th-TH', { maximumFractionDigits: 0 })} บาท
-                </div>
-              </div>
-            </div>
-
-            {/* Badges */}
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-3">🏆 แบดจ์</h3>
-            <div className="grid grid-cols-2 gap-4">
-              {badges.map((badge) => (
-                <div
-                  key={badge.id}
-                  className={`text-center p-4 rounded-lg transition-all ${
-                    badge.earned
-                      ? badge.color === 'yellow' ? 'bg-yellow-100' :
-                        badge.color === 'green' ? 'bg-green-100' :
-                        badge.color === 'blue' ? 'bg-blue-100' : 'bg-purple-100'
-                      : 'bg-gray-100 opacity-50'
-                  }`}
-                >
-                  <div className="text-2xl mb-2">{badge.icon}</div>
-                  <div className={`text-sm font-medium ${
-                    badge.earned
-                      ? badge.color === 'yellow' ? 'text-yellow-800' :
-                        badge.color === 'green' ? 'text-green-800' :
-                        badge.color === 'blue' ? 'text-blue-800' : 'text-purple-800'
-                      : 'text-gray-600'
-                  }`}>
-                    {badge.title}
-                  </div>
-                </div>
-              ))}
-            </div>
+            )}
           </div>
-        </div>
-        
-        <div ref={historyRef} className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">ประวัติการกิน</h2>
-            {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              {/* Time Filter */}
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setTimeFilter('today')}
-                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                    timeFilter === 'today'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  วันนี้
-                </button>
-                <button
-                  onClick={() => setTimeFilter('week')}
-                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                    timeFilter === 'week'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  สัปดาห์
-                </button>
-                <button
-                  onClick={() => setTimeFilter('month')}
-                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                    timeFilter === 'month'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  เดือน
-                </button>
-                <button
-                  onClick={() => setTimeFilter('all')}
-                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                    timeFilter === 'all'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  ทั้งหมด
-                </button>
-              </div>
-              {/* Visibility Filter */}
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => setVisibilityFilter('all')}
-                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                    visibilityFilter === 'all'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  ทั้งหมด
-                </button>
-                <button
-                  onClick={() => setVisibilityFilter('public')}
-                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                    visibilityFilter === 'public'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  🌐 สาธารณะ
-                </button>
-                <button
-                  onClick={() => setVisibilityFilter('private')}
-                  className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                    visibilityFilter === 'private'
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                  }`}
-                >
-                  🔒 ส่วนตัว
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {isLoading && (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-              <p className="text-gray-600">กำลังโหลดประวัติ...</p>
-            </div>
-          )}
-
-          {(logsError || menusError) && (
-            <div className="text-center py-8">
-              <p className="text-red-600 mb-2">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>
-              <p className="text-sm text-gray-500">
-                {logsError && `Logs: ${logsError.message}`}
-                {menusError && `Menus: ${menusError.message}`}
-              </p>
-            </div>
-          )}
-
-          {!isLoading && filteredLogsWithMenus.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-gray-500">ยังไม่มีประวัติการกินในช่วงเวลาที่เลือก</p>
-              <p className="text-sm text-gray-400 mt-2">ลองเปลี่ยนช่วงเวลาหรือไปบันทึกเมนูใหม่ดูสิ!</p>
-            </div>
-          )}
-
-          {!isLoading && filteredLogsWithMenus.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredLogsWithMenus.map((log) => {
-                const m = log.menu;
-                const isFocus = historyFocus ? (
-                  historyFocus.dim === 'category' ? m?.category === historyFocus.key :
-                  historyFocus.dim === 'taste' ? (m?.tastes?.includes(historyFocus.key as Taste) ?? false) :
-                  historyFocus.dim === 'canteen' ? m?.location === historyFocus.key : false
-                ) : false;
-                return (
-                  <div key={log.id} className={isFocus ? 'ring-2 ring-primary-500 rounded-lg' : ''}>
-                    <LogCard log={log} menu={m!} />
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );
