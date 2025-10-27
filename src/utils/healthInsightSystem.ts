@@ -91,7 +91,7 @@ export function determineHealthStatus(
     }
   }
 
-  return getHealthStatusDetails(level, healthScore, consistency, veggieRatio, recentTrend, bmiInfo);
+  return getHealthStatusDetails(level, healthScore, consistency, veggieRatio, recentTrend, bmiInfo || undefined);
 }
 
 function getHealthStatusDetails(
@@ -100,7 +100,7 @@ function getHealthStatusDetails(
   consistency: string,
   veggieRatio: number,
   recentTrend: string,
-  bmiInfo?: any
+  bmiInfo?: ReturnType<typeof getBMIInfo>
 ): HealthStatus {
   const baseStatuses: Record<HealthStatus['level'], Omit<HealthStatus, 'relatedConditions'>> = {
     good: {
@@ -187,7 +187,7 @@ function getHealthStatusDetails(
   };
 
   const baseStatus = baseStatuses[level];
-  const relatedConditions = generateRelatedConditions(level, healthScore, veggieRatio, consistency);
+  const relatedConditions = generateRelatedConditions(level, healthScore, veggieRatio);
 
   return {
     ...baseStatus,
@@ -198,8 +198,7 @@ function getHealthStatusDetails(
 function generateRelatedConditions(
   level: HealthStatus['level'],
   healthScore: number,
-  veggieRatio: number,
-  consistency: string
+  veggieRatio: number
 ): HealthCondition[] {
   const conditions: HealthCondition[] = [];
 
@@ -327,8 +326,12 @@ export function generateHealthInsightExplanation(
   };
 }
 
-function analyzePrimaryFactors(stats: UserStats, logs: LogWithMenu[], profile?: UserProfile) {
-  const factors = [];
+function analyzePrimaryFactors(
+  stats: UserStats,
+  logs: LogWithMenu[],
+  profile?: UserProfile
+): { factor: string; impact: 'positive' | 'negative' | 'neutral'; description: string }[] {
+  const factors: { factor: string; impact: 'positive' | 'negative' | 'neutral'; description: string }[] = [];
 
   // Health score factor
   factors.push({
@@ -370,13 +373,16 @@ function analyzePrimaryFactors(stats: UserStats, logs: LogWithMenu[], profile?: 
   return factors;
 }
 
-function analyzeTrends(logs: LogWithMenu[]) {
+function analyzeTrends(logs: LogWithMenu[]): { direction: 'improving' | 'stable' | 'declining'; confidence: number; timeframe: string } {
   const recentTrend = calculateRecentHealthTrend(logs);
   const confidence = logs.length >= 20 ? 0.8 : logs.length >= 10 ? 0.6 : 0.4;
 
+  const direction: 'improving' | 'stable' | 'declining' =
+    recentTrend === 'improving' ? 'improving' :
+    recentTrend === 'declining' ? 'declining' : 'stable';
+
   return {
-    direction: recentTrend === 'improving' ? 'improving' :
-              recentTrend === 'declining' ? 'declining' : 'stable',
+    direction,
     confidence,
     timeframe: logs.length >= 14 ? '2 สัปดาห์' : 'ช่วงที่ผ่านมา'
   };
@@ -389,6 +395,14 @@ function generateActionableAdvice(
   profile?: UserProfile
 ) {
   const advice = [];
+  // Precompute BMI info once for use throughout this function
+  let bmiInfo: ReturnType<typeof getBMIInfo> | null = null;
+  if (profile && profile.height && profile.weight) {
+    const bmi = calculateBMI(profile.height, profile.weight);
+    if (bmi !== null) {
+      bmiInfo = getBMIInfo(bmi);
+    }
+  }
 
   // Diet advice
   if (status.level === 'good') {
@@ -431,11 +445,7 @@ function generateActionableAdvice(
   }
 
   // BMI-specific advice
-  if (profile && profile.height && profile.weight) {
-    const bmi = calculateBMI(profile.height, profile.weight);
-    if (bmi !== null) {
-      const bmiInfo = getBMIInfo(bmi);
-
+  if (bmiInfo) {
       if (bmiInfo.category === 'severely_obese' || bmiInfo.category === 'obese') {
         advice.push({
           category: 'medical' as const,
@@ -459,9 +469,8 @@ function generateActionableAdvice(
           priority: 'medium' as const,
           advice: 'ลดแคลอรี่วันละ 300-500 กิโลแคลอรี่และเพิ่มการออกกำลังกาย'
         });
-      }
-    }
   }
+}
 
   // Medical advice
   if (status.level === 'at_risk') {

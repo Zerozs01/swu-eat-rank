@@ -225,9 +225,9 @@ export function BMIHealthSummary({ bmiInfo, profile, className = '', compact = f
             )}
             {bmiInfo.category === 'normal' && (
               <>
-                <li>• รักษาน้ำหนักปัจจุบันให้คงที่</li>
+                <li>• รักษาน้ำหนักปัจจุบันให้คงที่ </li>
                 <li>• กินอาหารหลากหลายและสมดุล</li>
-                <li>>• ออกกำลังกายสม่ำเสมออย่างน้อย 150 นาที/สัปดาห์</li>
+                <li> • ออกกำลังกายสม่ำเสมออย่างน้อย 150 นาที/สัปดาห์</li>
               </>
             )}
             {(bmiInfo.category === 'overweight' || bmiInfo.category === 'obese' || bmiInfo.category === 'severely_obese') && (

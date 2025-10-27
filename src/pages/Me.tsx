@@ -1,14 +1,11 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useUserLogs } from '../hooks/useLogs';
 import { useMenus } from '../hooks/useMenus';
-import { calcHealthScore } from '../utils/healthScore';
-import LogCard from '../components/LogCard';
 import { EnhancedMealHistory } from '../components/meal/EnhancedMealHistory';
 import { useAuth } from '../contexts/AuthContext';
-import type { Log, Menu, Taste, LogWithMenu, Badge } from '../types/menu';
-import HealthOverview, { type Dimension, type TimeRange } from '../components/health/HealthOverview';
+import type { Log, Menu, LogWithMenu } from '../types/menu';
 import { OptimizedHealthSummary } from '../components/health/OptimizedHealthSummary';
-import { BadgeCollection, EnhancedBadge } from '../components/badges/EnhancedBadge';
+import { BadgeCollection } from '../components/badges/EnhancedBadge';
 import { checkBadgeEligibility, getBadgesByCategory, sortBadges, calculateUserStats } from '../utils/badgeSystem';
 
 
@@ -16,18 +13,12 @@ export default function Me() {
   const { user, userProfile } = useAuth();
   const { data: userLogs, isLoading, error: logsError } = useUserLogs();
   const { menus: allMenus, error: menusError } = useMenus();
-  const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all'>('today');
+  const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all'>('week');
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'private'>('all');
   const [activeBadgeTab, setActiveBadgeTab] = useState<'all' | 'streaks' | 'meals' | 'health' | 'nutrition'>('all');
-  const [selectedBadge, setSelectedBadge] = useState<Badge | null>(null);
   
-  // Pie controls
-  const [pieTime, setPieTime] = useState<TimeRange>('day');
-  const [pieDim, setPieDim] = useState<Dimension>('category');
-  const [historyFocus, setHistoryFocus] = useState<{ dim: Dimension; key: string } | null>(null);
-  const historyRef = useRef<HTMLDivElement>(null);
-  // Metric panel timeframe
-  const [metricTime, setMetricTime] = useState<TimeRange>('week');
+  // Metric panel timeframe for OptimizedHealthSummary
+  const [metricTime, setMetricTime] = useState<'day' | 'week' | 'month'>('week');
 
   // Filter logs by time period
   const filteredLogsWithMenus = useMemo<Array<Log & { menu: Menu }>>(() => {
@@ -77,95 +68,7 @@ export default function Me() {
      return filtered;
    }, [userLogs, allMenus, timeFilter, visibilityFilter]);
 
-  // Logs subset for pie based on pieTime (day/week/month) from all combined logs
-  const pieLogs = useMemo<LogWithMenu[]>(() => {
-    if (!userLogs || !allMenus) return [] as LogWithMenu[];
-    const combined = userLogs
-      .map(log => ({ ...log, menu: allMenus.find(m => m.id === log.menuId) }))
-      .filter((l): l is LogWithMenu & { menu: Menu } => Boolean(l.menu));
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const monthAgo = new Date(today.getFullYear(), now.getMonth() - 1, now.getDate());
-    switch (pieTime) {
-      case 'day':
-        return combined.filter(l => l.at >= today.getTime());
-      case 'week':
-        return combined.filter(l => l.at >= weekAgo.getTime());
-      case 'month':
-      default:
-        return combined.filter(l => l.at >= monthAgo.getTime());
-    }
-  }, [userLogs, allMenus, pieTime]);
-
-  // Logs subset for metric panel
-  const metricLogs = useMemo<LogWithMenu[]>(() => {
-    if (!userLogs || !allMenus) return [] as LogWithMenu[];
-    const combined = userLogs
-      .map(log => ({ ...log, menu: allMenus.find(m => m.id === log.menuId) }))
-      .filter((l): l is LogWithMenu & { menu: Menu } => Boolean(l.menu));
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const monthAgo = new Date(today.getFullYear(), now.getMonth() - 1, now.getDate());
-    switch (metricTime) {
-      case 'day':
-        return combined.filter(l => l.at >= today.getTime());
-      case 'week':
-        return combined.filter(l => l.at >= weekAgo.getTime());
-      case 'month':
-      default:
-        return combined.filter(l => l.at >= monthAgo.getTime());
-    }
-  }, [userLogs, allMenus, metricTime]);
-
-  const metricStats = useMemo(() => {
-    if (!metricLogs.length) {
-      return {
-        avgScore: 0,
-        totalMeals: 0,
-        totalQuantity: 0,
-        publicLogs: 0,
-        privateLogs: 0,
-        budgetTotal: 0,
-      };
-    }
-    const avgScore = Math.round(
-      metricLogs.reduce((sum, l) => sum + calcHealthScore(l.menu!), 0) / metricLogs.length
-    );
-    const totalMeals = metricLogs.length;
-    const totalQuantity = metricLogs.reduce((s, l) => s + l.quantity, 0);
-    const publicLogs = metricLogs.filter(l => l.visibility === 'public').length;
-    const privateLogs = metricLogs.filter(l => l.visibility === 'private').length;
-    // Budget spent in current metricTime window
-    const budgetTotal = metricLogs.reduce((s, l) => s + ((l.menu?.price ?? 0) * l.quantity), 0);
-    return { avgScore, totalMeals, totalQuantity, publicLogs, privateLogs, budgetTotal };
-  }, [metricLogs]);
-
-  // Calculate health statistics
-  const healthStats = useMemo(() => {
-    if (!filteredLogsWithMenus.length) return { avgScore: 0, totalMeals: 0, totalQuantity: 0, streakDays: 0, publicLogs: 0, privateLogs: 0 };
-
-  const scores = filteredLogsWithMenus.map(log => calcHealthScore(log.menu));
-    const avgScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
-    
-    const totalMeals = filteredLogsWithMenus.length;
-    const totalQuantity = filteredLogsWithMenus.reduce((sum, log) => sum + log.quantity, 0);
-    
-    // Calculate visibility stats
-    const publicLogs = filteredLogsWithMenus.filter(log => log.visibility === 'public').length;
-    const privateLogs = filteredLogsWithMenus.filter(log => log.visibility === 'private').length;
-    
-    // Calculate streak (simplified - just count consecutive days with logs)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStart = today.getTime();
-    
-    const recentLogs = filteredLogsWithMenus.filter(log => log.at >= todayStart - (7 * 24 * 60 * 60 * 1000)); // Last 7 days
-    const streakDays = recentLogs.length > 0 ? Math.min(recentLogs.length, 7) : 0;
-
-    return { avgScore, totalMeals, totalQuantity, streakDays, publicLogs, privateLogs };
-  }, [filteredLogsWithMenus]);
+  // Removed unused local pie/metric calculations (now handled by OptimizedHealthSummary)
 
   // Enhanced badge calculation
   const allUserLogs = useMemo<LogWithMenu[]>(() => {
@@ -181,42 +84,6 @@ export default function Me() {
   const allBadges = useMemo(() => checkBadgeEligibility(userStats, allUserLogs), [userStats, allUserLogs]);
   const sortedBadges = useMemo(() => sortBadges(allBadges), [allBadges]);
   const categorizedBadges = useMemo(() => getBadgesByCategory(allBadges), [allBadges]);
-
-  // Legacy badges for compatibility
-  const badges = useMemo(() => {
-    const { avgScore, totalMeals, streakDays } = healthStats;
-
-    return [
-      {
-        id: 'healthy-week',
-        icon: '🥗',
-        title: 'กินผัก 7 วัน',
-        earned: streakDays >= 7,
-        color: 'yellow'
-      },
-      {
-        id: 'healthy-score',
-        icon: '🏃',
-        title: 'สุขภาพดี 5 วัน',
-        earned: avgScore >= 70,
-        color: 'green'
-      },
-      {
-        id: 'log-10',
-        icon: '📊',
-        title: 'บันทึก 10 มื้อ',
-        earned: totalMeals >= 10,
-        color: 'blue'
-      },
-      {
-        id: 'goal-30',
-        icon: '🎯',
-        title: 'เป้าหมาย 30 วัน',
-        earned: totalMeals >= 30,
-        color: 'purple'
-      }
-    ];
-  }, [healthStats]);
 
   // Show login prompt if not authenticated or anonymous user
   if (!user || !userProfile?.email) {
@@ -260,7 +127,7 @@ export default function Me() {
           goals={userProfile?.goals}
           timeRange={metricTime}
           onTimeRangeChange={(range) => setMetricTime(range as 'day' | 'week' | 'month')}
-          userId={user?.id}
+          userId={user?.uid}
         />
 
         {/* Enhanced Badge System */}
@@ -283,7 +150,7 @@ export default function Me() {
             ].map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveBadgeTab(tab.id as any)}
+                onClick={() => setActiveBadgeTab(tab.id as 'all' | 'streaks' | 'meals' | 'health' | 'nutrition')}
                 className={`
                   px-4 py-2 rounded-lg text-sm font-medium transition-all
                   ${activeBadgeTab === tab.id
@@ -313,7 +180,6 @@ export default function Me() {
                 badges={displayedBadges}
                 showProgress={true}
                 maxBadgesPerRow={4}
-                onBadgeClick={(badge) => setSelectedBadge(badge)}
               />
             );
           })()}
@@ -362,17 +228,60 @@ export default function Me() {
           </div>
         </div>
   
+        {/* Time and visibility filters for history */}
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            {[
+              { id: 'today', label: 'วันนี้' },
+              { id: 'week', label: '7 วัน' },
+              { id: 'month', label: '30 วัน' },
+              { id: 'all', label: 'ทั้งหมด' },
+            ].map(btn => (
+              <button
+                key={btn.id}
+                onClick={() => setTimeFilter(btn.id as 'today' | 'week' | 'month' | 'all')}
+                className={`px-3 py-2 text-sm rounded-md font-medium ${
+                  timeFilter === btn.id
+                    ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                }`}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+            {[
+              { id: 'all', label: 'ทั้งหมด' },
+              { id: 'public', label: 'สาธารณะ' },
+              { id: 'private', label: 'ส่วนตัว' },
+            ].map(btn => (
+              <button
+                key={btn.id}
+                onClick={() => setVisibilityFilter(btn.id as 'all' | 'public' | 'private')}
+                className={`px-3 py-2 text-sm rounded-md font-medium ${
+                  visibilityFilter === btn.id
+                    ? 'bg-white dark:bg-gray-900 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+                }`}
+              >
+                {btn.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Enhanced Meal History */}
         {!isLoading && !logsError && !menusError && (
           <EnhancedMealHistory
             logs={filteredLogsWithMenus}
-            onHistoryFocus={(dim, key) => setHistoryFocus({ dim: dim as Dimension, key })}
           />
         )}
 
         {/* Loading and Error States */}
         {(isLoading || logsError || menusError) && (
-          <div ref={historyRef} className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <div className="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
             {isLoading && (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>

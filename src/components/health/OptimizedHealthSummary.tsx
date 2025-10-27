@@ -6,6 +6,7 @@ import { HealthInsightCard } from './HealthInsightCard';
 import { BMIInputCard } from './BMIInputCard';
 import { BMIHealthSummary } from './BMIHealthSummary';
 import { useBMI } from '../../hooks/useBMI';
+import { calcHealthScore } from '../../utils/healthScore';
 import {
   LineChart,
   Line,
@@ -93,7 +94,10 @@ export function OptimizedHealthSummary({
       });
 
       const avgHealth = dayLogs.length > 0
-        ? dayLogs.reduce((sum, log) => sum + (log.menu?.healthScore || 0), 0) / dayLogs.length
+        ? dayLogs.reduce((sum, log) => {
+            const score = (log.menu?.healthScore ?? calcHealthScore(log.menu!));
+            return sum + score;
+          }, 0) / dayLogs.length
         : 0;
 
       const totalBudget = dayLogs.reduce((sum, log) => sum + ((log.menu?.price || 0) * log.quantity), 0);
