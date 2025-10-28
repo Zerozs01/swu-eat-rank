@@ -18,7 +18,7 @@ export function getBMIInfo(bmi: number): BMIInfo {
       category: 'underweight',
       categoryTH: 'น้ำหนักน้อยกว่าเกณฑ์',
       description: 'น้ำหนักต่ำกว่าเกณฑ์สุขภาพ อาจเสี่ยงต่อภาวะโภชนาการบกพร่อง',
-      color: 'text-blue-600 bg-blue-50 border-blue-200',
+  color: 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-200 dark:bg-blue-900/20 dark:border-blue-800',
       icon: '📉',
       healthRisks: [
         'ภาวะโภชนาการบกพร่อง',
@@ -41,7 +41,7 @@ export function getBMIInfo(bmi: number): BMIInfo {
       category: 'normal',
       categoryTH: 'น้ำหนักปกติ',
       description: 'น้ำหนักอยู่ในเกณฑ์สุขภาพที่ดี',
-      color: 'text-green-600 bg-green-50 border-green-200',
+  color: 'text-green-700 bg-green-50 border-green-200 dark:text-green-200 dark:bg-green-900/20 dark:border-green-800',
       icon: '✅',
       healthRisks: [],
       recommendations: [
@@ -57,7 +57,7 @@ export function getBMIInfo(bmi: number): BMIInfo {
       category: 'overweight',
       categoryTH: 'น้ำหนักเกิน',
       description: 'น้ำหนักเกินเกณฑ์ แต่ยังไม่ถึงระดับอ้วน',
-      color: 'text-yellow-600 bg-yellow-50 border-yellow-200',
+  color: 'text-yellow-700 bg-yellow-50 border-yellow-200 dark:text-yellow-200 dark:bg-yellow-900/20 dark:border-yellow-800',
       icon: '⚠️',
       healthRisks: [
         'เสี่ยงต่อโรคเบาหวานชนิดที่ 2',
@@ -79,7 +79,7 @@ export function getBMIInfo(bmi: number): BMIInfo {
       category: 'obese',
       categoryTH: 'อ้วน',
       description: 'อ้วนระดับ 1 มีความเสี่ยงต่อสุขภาพสูง',
-      color: 'text-orange-600 bg-orange-50 border-orange-200',
+  color: 'text-orange-700 bg-orange-50 border-orange-200 dark:text-orange-200 dark:bg-orange-900/20 dark:border-orange-800',
       icon: '🚨',
       healthRisks: [
         'โรคเบาหวานชนิดที่ 2',
@@ -103,7 +103,7 @@ export function getBMIInfo(bmi: number): BMIInfo {
       category: 'severely_obese',
       categoryTH: 'อ้วนรุนแรง',
       description: 'อ้วนระดับ 2 มีความเสี่ยงต่อสุขภาพสูงมาก',
-      color: 'text-red-600 bg-red-50 border-red-200',
+  color: 'text-red-700 bg-red-50 border-red-200 dark:text-red-200 dark:bg-red-900/20 dark:border-red-800',
       icon: '🆘',
       healthRisks: [
         'โรคเบาหวานชนิดที่ 2 (ความเสี่ยงสูงมาก)',

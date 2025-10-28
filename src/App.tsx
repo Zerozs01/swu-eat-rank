@@ -14,6 +14,7 @@ import Admin from './pages/Admin';
 import AdminUsers from './pages/AdminUsers';
 import EditMenu from './pages/EditMenu';
 import ManageMenus from './pages/ManageMenus';
+import Achievements from './pages/Achievements.tsx';
 
 // Create a client
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ function AppContent() {
           <Route path="/menu/:id" element={<MenuDetail />} />
           <Route path="/board" element={<Board />} />
           <Route path="/me" element={<Me />} />
+          <Route path="/achievements" element={<Achievements />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/admin/users" element={<AdminUsers />} />
             <Route path="/admin/menus" element={<ManageMenus />} />

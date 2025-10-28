@@ -7,9 +7,10 @@ interface BMIHealthSummaryProps {
   profile: UserProfile;
   className?: string;
   compact?: boolean;
+  showAdvice?: boolean; // controls rendering of risks and recommendations blocks
 }
 
-export function BMIHealthSummary({ bmiInfo, profile, className = '', compact = false }: BMIHealthSummaryProps) {
+export function BMIHealthSummary({ bmiInfo, profile, className = '', compact = false, showAdvice = true }: BMIHealthSummaryProps) {
   const idealWeightRange = profile.height ? getIdealWeightRange(profile.height) : null;
   const dailyCalories = calculateDailyCalories(profile);
 
@@ -79,12 +80,19 @@ export function BMIHealthSummary({ bmiInfo, profile, className = '', compact = f
 
         {/* BMI Scale Visual */}
         <div className="mt-4 relative">
-          <div className="h-2 bg-gradient-to-r from-blue-400 via-green-400 via-yellow-400 via-orange-400 to-red-400 rounded-full"></div>
-          <div
-            className="absolute top-0 w-4 h-2 bg-white border-2 border-gray-800 rounded-full transform -translate-x-1/2 transition-all duration-500"
-            style={{ left: `${Math.min(100, Math.max(0, (bmiInfo.value - 15) / 25 * 100))}%` }}
-          ></div>
-          <div className="flex justify-between mt-1 text-xs text-gray-500">
+          <div className="h-2 bg-gradient-to-r from-blue-400 via-green-400 to-red-400 rounded-full"></div>
+          {(() => {
+            const leftClass = bmiInfo.category === 'underweight' ? 'left-1/12' :
+                              bmiInfo.category === 'normal' ? 'left-1/3' :
+                              bmiInfo.category === 'overweight' ? 'left-2/3' :
+                              'left-5/6';
+            return (
+              <div
+                className={`absolute top-0 w-4 h-2 bg-white border-2 border-gray-800 rounded-full transform -translate-x-1/2 transition-all duration-500 ${leftClass}`}
+              />
+            );
+          })()}
+          <div className="flex justify-between mt-1 text-xs text-gray-500 dark:text-gray-400">
             <span>15</span>
             <span>20</span>
             <span>25</span>
@@ -104,11 +112,11 @@ export function BMIHealthSummary({ bmiInfo, profile, className = '', compact = f
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-600 dark:text-gray-400">ส่วนสูง:</span>
-              <span className="font-medium">{profile.height} ซม.</span>
+              <span className="font-medium text-gray-900 dark:text-white">{profile.height} ซม.</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600 dark:text-gray-400">น้ำหนัก:</span>
-              <span className="font-medium">{profile.weight} กก.</span>
+              <span className="font-medium text-gray-900 dark:text-white">{profile.weight} กก.</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600 dark:text-gray-400">BMI:</span>
@@ -136,12 +144,12 @@ export function BMIHealthSummary({ bmiInfo, profile, className = '', compact = f
             {dailyCalories && (
               <div className="flex justify-between">
                 <span className="text-gray-600 dark:text-gray-400">ความต้องการแคลอรี่:</span>
-                <span className="font-medium">{dailyCalories} กิโลแคลอรี่/วัน</span>
+                <span className="font-medium text-gray-900 dark:text-white">{dailyCalories} กิโลแคลอรี่/วัน</span>
               </div>
             )}
             <div className="flex justify-between">
               <span className="text-gray-600 dark:text-gray-400">ระดับการออกกำลังกาย:</span>
-              <span className="font-medium">
+              <span className="font-medium text-gray-900 dark:text-white">
                 {profile.activityLevel === 'sedentary' ? 'น้อย' :
                  profile.activityLevel === 'lightly_active' ? 'เล็กน้อย' :
                  profile.activityLevel === 'moderately_active' ? 'ปานกลาง' :
@@ -151,13 +159,13 @@ export function BMIHealthSummary({ bmiInfo, profile, className = '', compact = f
             {profile.age && (
               <div className="flex justify-between">
                 <span className="text-gray-600 dark:text-gray-400">อายุ:</span>
-                <span className="font-medium">{profile.age} ปี</span>
+                <span className="font-medium text-gray-900 dark:text-white">{profile.age} ปี</span>
               </div>
             )}
             {profile.gender && (
               <div className="flex justify-between">
                 <span className="text-gray-600 dark:text-gray-400">เพศ:</span>
-                <span className="font-medium">
+                <span className="font-medium text-gray-900 dark:text-white">
                   {profile.gender === 'male' ? 'ชาย' :
                    profile.gender === 'female' ? 'หญิง' : 'อื่นๆ'}
                 </span>
@@ -167,8 +175,8 @@ export function BMIHealthSummary({ bmiInfo, profile, className = '', compact = f
         </div>
       </div>
 
-      {/* Health Risks */}
-      {bmiInfo.healthRisks.length > 0 && (
+      {/* Health Risks (optional) */}
+      {showAdvice && bmiInfo.healthRisks.length > 0 && (
         <div className="mb-6">
           <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
             <span>⚠️</span> ความเสี่ยงต่อสุขภาพ
@@ -196,51 +204,53 @@ export function BMIHealthSummary({ bmiInfo, profile, className = '', compact = f
         </div>
       )}
 
-      {/* Recommendations */}
-      <div>
-        <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-          <span>💡</span> คำแนะนำ
-        </h4>
-        <div className="space-y-2">
-          {bmiInfo.recommendations.map((recommendation, index) => (
-            <div key={index} className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-              <span className="text-blue-500 mt-0.5">✓</span>
-              <span className="text-sm text-blue-800 dark:text-blue-200 leading-relaxed">
-                {recommendation}
-              </span>
-            </div>
-          ))}
-        </div>
+      {/* Recommendations (optional) */}
+      {showAdvice && (
+        <div>
+          <h4 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+            <span>💡</span> คำแนะนำ
+          </h4>
+          <div className="space-y-2">
+            {bmiInfo.recommendations.map((recommendation, index) => (
+              <div key={index} className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <span className="text-blue-500 mt-0.5">✓</span>
+                <span className="text-sm text-blue-800 dark:text-blue-200 leading-relaxed">
+                  {recommendation}
+                </span>
+              </div>
+            ))}
+          </div>
 
-        {/* Additional Tips based on BMI category */}
-        <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-          <h5 className="font-medium text-amber-900 dark:text-amber-100 mb-2">🎯 เคล็ดลับเพิ่มเติม:</h5>
-          <ul className="space-y-1 text-sm text-amber-800 dark:text-amber-200">
-            {bmiInfo.category === 'underweight' && (
-              <>
-                <li>• ทานอาหารบ่อยขึ้น (5-6 มื้อ/วัน) เพื่อเพิ่มแคลอรี่</li>
-                <li>• เลือกอาหารที่มีโปรตีนสูงในทุกมื้อ</li>
-                <li>• ออกกำลังกายแบบกำลังเพื่อสร้างกล้ามเนื้อ</li>
-              </>
-            )}
-            {bmiInfo.category === 'normal' && (
-              <>
-                <li>• รักษาน้ำหนักปัจจุบันให้คงที่ </li>
-                <li>• กินอาหารหลากหลายและสมดุล</li>
-                <li> • ออกกำลังกายสม่ำเสมออย่างน้อย 150 นาที/สัปดาห์</li>
-              </>
-            )}
-            {(bmiInfo.category === 'overweight' || bmiInfo.category === 'obese' || bmiInfo.category === 'severely_obese') && (
-              <>
-                <li>• ตั้งเป้าหมายการลดน้ำหนักที่เป็นไปได้ (0.5-1 กก./สัปดาห์)</li>
-                <li>• บันทึกอาหารที่ทานเพื่อควบคุมแคลอรี่</li>
-                <li>• เพิ่มการเคลื่อนไหวในชีวิตประจำวัน</li>
-                <li>• ดื่มน้ำมากๆ (8-10 แก้วต่อวัน)</li>
-              </>
-            )}
-          </ul>
+          {/* Additional Tips based on BMI category */}
+          <div className="mt-4 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+            <h5 className="font-medium text-amber-900 dark:text-amber-100 mb-2">🎯 เคล็ดลับเพิ่มเติม:</h5>
+            <ul className="space-y-1 text-sm text-amber-800 dark:text-amber-200">
+              {bmiInfo.category === 'underweight' && (
+                <>
+                  <li>• ทานอาหารบ่อยขึ้น (5-6 มื้อ/วัน) เพื่อเพิ่มแคลอรี่</li>
+                  <li>• เลือกอาหารที่มีโปรตีนสูงในทุกมื้อ</li>
+                  <li>• ออกกำลังกายแบบกำลังเพื่อสร้างกล้ามเนื้อ</li>
+                </>
+              )}
+              {bmiInfo.category === 'normal' && (
+                <>
+                  <li>• รักษาน้ำหนักปัจจุบันให้คงที่ </li>
+                  <li>• กินอาหารหลากหลายและสมดุล</li>
+                  <li> • ออกกำลังกายสม่ำเสมออย่างน้อย 150 นาที/สัปดาห์</li>
+                </>
+              )}
+              {(bmiInfo.category === 'overweight' || bmiInfo.category === 'obese' || bmiInfo.category === 'severely_obese') && (
+                <>
+                  <li>• ตั้งเป้าหมายการลดน้ำหนักที่เป็นไปได้ (0.5-1 กก./สัปดาห์)</li>
+                  <li>• บันทึกอาหารที่ทานเพื่อควบคุมแคลอรี่</li>
+                  <li>• เพิ่มการเคลื่อนไหวในชีวิตประจำวัน</li>
+                  <li>• ดื่มน้ำมากๆ (8-10 แก้วต่อวัน)</li>
+                </>
+              )}
+            </ul>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -177,15 +177,24 @@ function HealthConditionCard({ condition }: { condition: HealthCondition }) {
   );
 }
 
-function ActionableAdviceCard({ advice }: { advice: any }) {
-  const categoryIcon = {
+type AdviceCategory = 'diet' | 'exercise' | 'lifestyle' | 'medical';
+type AdvicePriority = 'high' | 'medium' | 'low';
+
+interface ActionableAdvice {
+  category: AdviceCategory;
+  priority: AdvicePriority;
+  advice: string;
+}
+
+function ActionableAdviceCard({ advice }: { advice: ActionableAdvice }) {
+  const categoryIcon: Record<AdviceCategory, string> = {
     diet: '🥗',
     exercise: '🏃',
     lifestyle: '🌟',
     medical: '🏥'
   };
 
-  const priorityColor = {
+  const priorityColor: Record<AdvicePriority, string> = {
     high: 'border-red-200 bg-red-50',
     medium: 'border-yellow-200 bg-yellow-50',
     low: 'border-green-200 bg-green-50'

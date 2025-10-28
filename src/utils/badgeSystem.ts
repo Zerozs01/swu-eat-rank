@@ -1,4 +1,5 @@
 import type { Badge, BadgeType, BadgeLevel, UserStats, LogWithMenu, Menu } from '../types/menu';
+import { calcHealthScore } from './healthScore';
 
 // Badge definitions with Thai names and descriptions
 export const BADGE_DEFINITIONS: Record<string, Omit<Badge, 'isEarned' | 'earnedAt' | 'progress'>> = {
@@ -232,8 +233,11 @@ export function calculateUserStats(logs: LogWithMenu[]): UserStats {
 
   // Calculate health scores
   const healthScores = logs
-    .filter(log => log.menu?.healthScore)
-    .map(log => log.menu!.healthScore!);
+    .filter(log => log.menu)
+    .map(log => {
+      const menu = log.menu as Menu;
+      return (menu.healthScore ?? calcHealthScore(menu));
+    });
 
   const averageHealthScore = healthScores.length > 0
     ? healthScores.reduce((sum, score) => sum + score, 0) / healthScores.length
@@ -246,8 +250,24 @@ export function calculateUserStats(logs: LogWithMenu[]): UserStats {
   // Calculate budget
   const totalBudget = logs.reduce((sum, log) => sum + (log.menu?.price || 0) * log.quantity, 0);
 
-  // Count healthy days (score ≥70)
-  const healthyDays = logs.filter(log => log.menu?.healthScore && log.menu.healthScore >= 70).length;
+  // Count healthy days (at least one meal with score ≥70 in a day)
+  const logsByDate = new Map<string, LogWithMenu[]>();
+  logs.forEach(log => {
+    const d = new Date(log.at); d.setHours(0,0,0,0);
+    const key = d.getTime().toString();
+    const arr = logsByDate.get(key) || [];
+    arr.push(log);
+    logsByDate.set(key, arr);
+  });
+  const healthyDays = Array.from(logsByDate.values()).reduce((count, dayLogs) => {
+    const hasHealthy = dayLogs.some(l => {
+      if (!l.menu) return false;
+      const menu = l.menu as Menu;
+      const score = menu.healthScore ?? calcHealthScore(menu);
+      return score >= 70;
+    });
+    return count + (hasHealthy ? 1 : 0);
+  }, 0);
 
   // Count veggie meals (has veggies)
   const veggieMeals = logs.filter(log =>

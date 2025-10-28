@@ -5,6 +5,7 @@ import { LOCATIONS, CATEGORIES, TASTES } from '../constants/enums';
 // import { SearchIcon } from '../components/icons';
 import type { Location, Category, Menu, Taste } from '../types/menu';
 import MenuCard from '../components/MenuCard';
+import BoardCard from '../components/BoardCard';
 import { suggestByContext, type EnergyLevel } from '../utils/contextSuggest';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserLogs, useLogsByPeriod } from '../hooks/useLogs';
@@ -75,13 +76,48 @@ export default function Home() {
     return recs;
   }, [menus, contextFilteredMenus, userLogs, userProfile?.email]);
 
-  // Popular menus by selected period
+  // Popular menus by selected period (IDs only)
   const popularByPeriod = useMemo(() => {
     if (!menus || menus.length === 0) return [] as Menu[];
     const logs = popPeriod === 'today' ? popularLogsToday : popPeriod === 'week' ? popularLogsWeek : popularLogsMonth;
     // Always honor current filters; if no menu passes filters, return empty
     if (!contextFilteredMenus.length) return [] as Menu[];
     return getPopularMenus(contextFilteredMenus, logs, 12);
+  }, [menus, contextFilteredMenus, popPeriod, popularLogsToday, popularLogsWeek, popularLogsMonth]);
+
+  // Popular stats (จำนวนจานรวม และสั่งแล้วกี่ครั้ง) for Home "เมนูยอดนิยม"
+  const popularStats = useMemo(() => {
+    if (!menus || menus.length === 0) return [] as Array<{ menu: Menu; orderCount: number; totalQuantity: number }>;
+    // choose logs by period
+    const logs = popPeriod === 'today' ? popularLogsToday : popPeriod === 'week' ? popularLogsWeek : popularLogsMonth;
+    if (!contextFilteredMenus.length || !logs.length) return [] as Array<{ menu: Menu; orderCount: number; totalQuantity: number }>;
+
+    // Restrict stats to menus that pass current filters
+    const allowed = new Set(contextFilteredMenus.map(m => m.id));
+    const stats = logs.reduce((acc, log) => {
+      if (!allowed.has(log.menuId)) return acc;
+      if (!acc[log.menuId]) {
+        acc[log.menuId] = { orderCount: 0, totalQuantity: 0 };
+      }
+      acc[log.menuId].orderCount += 1;
+      acc[log.menuId].totalQuantity += (log.quantity || 1);
+      return acc;
+    }, {} as Record<string, { orderCount: number; totalQuantity: number }>);
+
+    // Sort by totalQuantity (same as popular), then limit
+    const sortedIds = Object.entries(stats)
+      .sort(([, a], [, b]) => b.totalQuantity - a.totalQuantity)
+      .slice(0, 12)
+      .map(([id]) => id);
+
+    // Map to full objects, preserving order
+    const menuMap = new Map(contextFilteredMenus.map(m => [m.id, m] as const));
+    const result: Array<{ menu: Menu; orderCount: number; totalQuantity: number }> = [];
+    for (const id of sortedIds) {
+      const m = menuMap.get(id);
+      if (m) result.push({ menu: m, orderCount: stats[id].orderCount, totalQuantity: stats[id].totalQuantity });
+    }
+    return result;
   }, [menus, contextFilteredMenus, popPeriod, popularLogsToday, popularLogsWeek, popularLogsMonth]);
 
   // When user types, restrict results strictly to matches + context filters
@@ -386,9 +422,22 @@ export default function Home() {
                   onWheelCapture={onWheelHorizontal}
                 >
                   <div className="flex gap-4 snap-x snap-mandatory pb-2">
-                    {popularByPeriod.map(menu => (
-                      <div key={menu.id} className="snap-start min-w-[260px] max-w-[280px]">
-                        <MenuCard menu={menu} />
+                    {popularStats.map((item, idx) => (
+                      <div
+                        key={item.menu.id}
+                        className="snap-start min-w-[300px] max-w-[320px] cursor-pointer hover:shadow-lg transition-shadow"
+                        onClick={() => navigate(`/menu/${item.menu.id}`)}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`เปิดรายละเอียดเมนู ${item.menu.name}`}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            navigate(`/menu/${item.menu.id}`);
+                          }
+                        }}
+                      >
+                        <BoardCard menu={item.menu} orderCount={item.orderCount} totalQuantity={item.totalQuantity} rank={idx + 1} />
                       </div>
                     ))}
                   </div>

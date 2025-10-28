@@ -54,12 +54,12 @@ export default function BoardCard({ menu, orderCount, totalQuantity, rank }: Boa
         <h3 className="font-semibold text-gray-800 dark:text-white text-lg mb-1">
           {menu.name}
         </h3>
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-600 dark:text-gray-300">
+        <div className="flex items-center justify-between min-w-0">
+          <p className="text-sm text-gray-600 dark:text-gray-300 truncate flex-1">
             {menu.vendor} • {LOCATIONS[menu.location]}
           </p>
           {typeof menu.price === 'number' && (
-            <span className="text-xs font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900 px-2 py-0.5 rounded">
+            <span className="ml-2 shrink-0 text-xs font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-900 px-2 py-0.5 rounded">
               ฿{menu.price}
             </span>
           )}
@@ -91,13 +91,13 @@ export default function BoardCard({ menu, orderCount, totalQuantity, rank }: Boa
         <div className="space-y-1">
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-600 dark:text-gray-300">จำนวนจานรวม:</span>
-            <span className="font-semibold text-blue-600 dark:text-blue-400 text-lg">
+            <span className="font-semibold text-blue-600 dark:text-blue-400 text-lg whitespace-nowrap">
               {totalQuantity} จาน
             </span>
           </div>
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-600 dark:text-gray-300">สั่งแล้ว:</span>
-            <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+            <span className="font-semibold text-indigo-600 dark:text-indigo-400 whitespace-nowrap">
               {orderCount} ครั้ง
             </span>
           </div>

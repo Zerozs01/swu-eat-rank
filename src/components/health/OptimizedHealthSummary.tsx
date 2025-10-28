@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import type { LogWithMenu, UserStats, HealthGoals } from '../../types/menu';
-import { calculateUserStats, generateBehaviorInsights } from '../../utils/badgeSystem';
+import type { LogWithMenu, HealthGoals, Menu } from '../../types/menu';
+import { calculateUserStats } from '../../utils/badgeSystem';
 import { generateHealthInsightExplanation } from '../../utils/healthInsightSystem';
-import { HealthInsightCard } from './HealthInsightCard';
-import { BMIInputCard } from './BMIInputCard';
 import { BMIHealthSummary } from './BMIHealthSummary';
+import { BMIInputCard } from './BMIInputCard';
 import { useBMI } from '../../hooks/useBMI';
 import { calcHealthScore } from '../../utils/healthScore';
+import { Link } from 'react-router-dom';
 import {
   LineChart,
   Line,
@@ -40,12 +40,28 @@ export function OptimizedHealthSummary({
   userId
 }: OptimizedHealthSummaryProps) {
   const [activeView, setActiveView] = useState<'dashboard' | 'insights' | 'health-analysis' | 'meals'>('dashboard');
-  const [selectedMetric, setSelectedMetric] = useState<'health' | 'frequency' | 'budget'>('health');
+  const [bmiOpen, setBmiOpen] = useState(false);
+  const [bmiFormOpen, setBmiFormOpen] = useState(false);
 
   const stats = useMemo(() => calculateUserStats(logs), [logs]);
   const healthData = useMemo(() => processHealthData(logs, timeRange), [logs, timeRange]);
+  const periodAverageHealthScore = useMemo(() => {
+    // Average health score limited to selected timeRange
+    const now = Date.now();
+    let cutoff = now;
+    if (timeRange === 'week') cutoff = now - 7 * 24 * 60 * 60 * 1000;
+    if (timeRange === 'month') cutoff = now - 30 * 24 * 60 * 60 * 1000;
+    const recent = timeRange === 'day' ? logs.filter(l => {
+      const d = new Date(); d.setHours(0,0,0,0);
+      return l.at >= d.getTime();
+    }) : logs.filter(l => l.at >= cutoff);
+    if (recent.length === 0) return 0;
+    const scores = recent.map(l => (l.menu?.healthScore ?? calcHealthScore(l.menu as Menu)));
+    return scores.reduce((a,b)=>a+b,0) / scores.length;
+  }, [logs, timeRange]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const categoryData = useMemo(() => processCategoryData(logs, timeRange), [logs, timeRange]);
-  const insights = useMemo(() => generateBehaviorInsights(logs, stats), [logs, stats]);
+  // const insights = useMemo(() => generateBehaviorInsights(logs, stats), [logs, stats]);
 
   // BMI integration
   const { profile: bmiProfile, bmiInfo, updateProfile: updateBMIProfile } = useBMI(userId || '');
@@ -65,6 +81,22 @@ export function OptimizedHealthSummary({
   };
 
   const PIE_COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4'];
+
+  // Utility: map 0-100% to Tailwind width classes (approximate)
+  function toWidthClass(pct: number): string {
+    const p = Math.max(0, Math.min(100, pct));
+    if (p === 0) return 'w-0';
+    if (p <= 10) return 'w-1/6';
+    if (p <= 20) return 'w-1/4';
+    if (p <= 30) return 'w-1/3';
+    if (p <= 40) return 'w-2/5';
+    if (p <= 50) return 'w-1/2';
+    if (p <= 60) return 'w-3/5';
+    if (p <= 70) return 'w-2/3';
+    if (p <= 80) return 'w-3/4';
+    if (p <= 90) return 'w-5/6';
+    return 'w-full';
+  }
 
   function processHealthData(logs: LogWithMenu[], timeRange: string) {
     const now = new Date();
@@ -145,6 +177,48 @@ export function OptimizedHealthSummary({
     })).sort((a, b) => b.value - a.value);
   }
 
+  function processTasteData(logs: LogWithMenu[], timeRange: string) {
+    const now = new Date();
+    let cutoff = now.getTime();
+
+    switch (timeRange) {
+      case 'week':
+        cutoff -= 7 * 24 * 60 * 60 * 1000;
+        break;
+      case 'month':
+        cutoff -= 30 * 24 * 60 * 60 * 1000;
+        break;
+    }
+
+    const recentLogs = logs.filter(log => log.at >= cutoff);
+    const tasteCount = new Map<string, number>();
+
+    recentLogs.forEach(log => {
+      const tastes = log.menu?.tastes || [];
+      tastes.forEach(t => tasteCount.set(t, (tasteCount.get(t) || 0) + 1));
+    });
+
+    const total = Math.max(1, recentLogs.length);
+    return Array.from(tasteCount.entries()).map(([taste, count]) => ({
+      name: getTasteName(taste),
+      value: count,
+      taste,
+      percentage: Math.round((count / total) * 100)
+    })).sort((a, b) => b.value - a.value);
+  }
+
+  function getTasteName(taste: string): string {
+    switch (taste) {
+      case 'SWEET': return 'หวาน';
+      case 'OILY': return 'มัน';
+      case 'SPICY': return 'เผ็ด';
+      case 'SOUR': return 'เปรี้ยว';
+      case 'BLAND': return 'จืด';
+      case 'SALTY': return 'เค็ม';
+      default: return taste;
+    }
+  }
+
   function getCategoryName(category: string): string {
     switch (category) {
       case 'RICE': return 'ข้าวทานเคียว';
@@ -156,12 +230,7 @@ export function OptimizedHealthSummary({
     }
   }
 
-  function getHealthScoreColor(score: number): string {
-    if (score >= 80) return 'text-green-600 bg-green-50 border-green-200';
-    if (score >= 60) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-    if (score >= 40) return 'text-orange-600 bg-orange-50 border-orange-200';
-    return 'text-red-600 bg-red-50 border-red-200';
-  }
+  // Removed unused getHealthScoreColor
 
   function getHealthScoreIcon(score: number): string {
     if (score >= 80) return '🎉';
@@ -182,6 +251,7 @@ export function OptimizedHealthSummary({
     return Math.max(0, 100 - standardDeviation);
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const stabilityScore = useMemo(() => calculateStabilityScore(healthData), [healthData]);
   const trendData = useMemo(() => {
     const validData = healthData.filter(d => d.hasData && d.healthScore > 0);
@@ -200,6 +270,22 @@ export function OptimizedHealthSummary({
     return 'stable';
   }, [healthData]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const tasteData = useMemo(() => processTasteData(logs, timeRange), [logs, timeRange]);
+  const junkStats = useMemo(() => {
+    const now = new Date();
+    let cutoff = now.getTime();
+    switch (timeRange) {
+      case 'week': cutoff -= 7 * 24 * 60 * 60 * 1000; break;
+      case 'month': cutoff -= 30 * 24 * 60 * 60 * 1000; break;
+    }
+    const recentLogs = logs.filter(l => timeRange === 'day' ? (new Date(l.at).setHours(0,0,0,0) >= new Date().setHours(0,0,0,0)) : l.at >= cutoff);
+    const isJunk = (m?: Menu) => !m ? false : (m.category === 'FRIED' || (m.tastes || []).some(t => t === 'OILY' || t === 'SWEET') || m.category === 'DESSERT');
+    const junkCount = recentLogs.reduce((acc, l) => acc + (isJunk(l.menu as Menu) ? 1 : 0), 0);
+    const total = Math.max(1, recentLogs.length);
+    return { junkCount, total, percent: Math.round((junkCount / total) * 100) };
+  }, [logs, timeRange]);
+
   return (
     <div className="space-y-8">
       {/* Header with Time Range Selector */}
@@ -210,14 +296,14 @@ export function OptimizedHealthSummary({
         </div>
 
         <div className="flex bg-gray-100 dark:bg-gray-800 rounded-xl p-1">
-          {[
+          {([
             { value: 'day', label: 'วันนี้', icon: '☀️' },
             { value: 'week', label: '7 วัน', icon: '📅' },
             { value: 'month', label: '30 วัน', icon: '📊' }
-          ].map((range) => (
+          ] as const).map((range) => (
             <button
               key={range.value}
-              onClick={() => onTimeRangeChange(range.value as any)}
+              onClick={() => onTimeRangeChange(range.value)}
               className={`
                 flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all
                 ${timeRange === range.value
@@ -233,8 +319,97 @@ export function OptimizedHealthSummary({
         </div>
       </div>
 
-      {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      {/* Key Metrics Cards - Mobile carousel */}
+      <div className="sm:hidden">
+        <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory no-scrollbar -mx-4 px-4">
+          {/* Health Score Card */}
+          <div className="min-w-[80%] snap-center bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">{getHealthScoreIcon(stats.averageHealthScore)}</span>
+                  <div className="text-sm font-medium text-gray-600 dark:text-gray-400">คะแนนสุขภาพ</div>
+                </div>
+                <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                  {Math.round(periodAverageHealthScore)}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                  เฉลี่ยจาก {(() => { const total = healthData.reduce((sum,d)=>sum + d.meals,0); return total; })()} มื้อ
+                </div>
+              </div>
+              <div className={`px-3 py-1 rounded-full text-xs font-medium border ${healthInsightExplanation.overallStatus.color}`}>
+                {healthInsightExplanation.overallStatus.label}
+              </div>
+            </div>
+            <div className="mt-4 flex items-center justify-end">
+              <span className="text-xs text-gray-500">แนวโน้ม {trendData === 'improving' ? '📈' : trendData === 'declining' ? '📉' : '➡️'}</span>
+            </div>
+          </div>
+
+          {/* Current Streak Card */}
+          <div className="min-w-[80%] snap-center bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">🔥</span>
+                  <div className="text-sm font-medium text-gray-600 dark:text-gray-400">สตรีคปัจจุบัน</div>
+                </div>
+                <div className="text-3xl font-bold text-orange-600 dark:text-orange-400">{stats.currentStreak}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">วันติดต่อกัน</div>
+              </div>
+              <div className="text-2xl">⚡</div>
+            </div>
+            <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">สถิติสูงสุด: {stats.longestStreak} วัน</div>
+          </div>
+
+          {/* Meals Logged Card */}
+          <div className="min-w-[80%] snap-center bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">📝</span>
+                  <div className="text-sm font-medium text-gray-600 dark:text-gray-400">มื้อที่บันทึก</div>
+                </div>
+                <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                  {timeRange === 'day' ? stats.weeklyLogs : timeRange === 'week' ? stats.weeklyLogs : stats.monthlyLogs}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">ในช่วงเวลาที่เลือก</div>
+              </div>
+              <div className="text-2xl">🍽️</div>
+            </div>
+            <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">เป้าหมาย: {goals?.targetWeeklyLogs || 21} มื้อ/สัปดาห์</div>
+          </div>
+
+          {/* Budget Card */}
+          <div className="min-w-[80%] snap-center bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">💰</span>
+                  <div className="text-sm font-medium text-gray-600 dark:text-gray-400">งบประมาณ</div>
+                </div>
+                <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">
+                  ฿{Math.round(healthData.reduce((sum, d) => sum + d.budget, 0))}
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">รวมทั้งหมด</div>
+              </div>
+              <div className="text-2xl">💳</div>
+            </div>
+            <div className="mt-4">
+              <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                <span>เฉลี่ย/มื้อ</span>
+                <span>฿{stats.totalLogs > 0 ? Math.round(stats.totalBudget / stats.totalLogs) : 0}</span>
+              </div>
+              <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                <div className="bg-gradient-to-r from-purple-400 to-purple-600 h-1.5 rounded-full" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Key Metrics Cards - Desktop grid */}
+      <div className="hidden sm:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Health Score Card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
           <div className="flex items-start justify-between">
@@ -244,10 +419,10 @@ export function OptimizedHealthSummary({
                 <div className="text-sm font-medium text-gray-600 dark:text-gray-400">คะแนนสุขภาพ</div>
               </div>
               <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                {Math.round(stats.averageHealthScore)}
+                {Math.round(periodAverageHealthScore)}
               </div>
               <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                เฉลี่ยจาก {stats.totalLogs} มื้อ
+                เฉลี่ยจาก {healthData.reduce((sum,d)=>sum + d.meals,0)} มื้อ
               </div>
             </div>
             <div className={`px-3 py-1 rounded-full text-xs font-medium border ${healthInsightExplanation.overallStatus.color}`}>
@@ -259,8 +434,7 @@ export function OptimizedHealthSummary({
           <div className="mt-4 flex items-center gap-2">
             <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
               <div
-                className="bg-gradient-to-r from-green-400 to-green-600 h-1.5 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(100, stats.averageHealthScore)}%` }}
+                className={`bg-gradient-to-r from-green-400 to-green-600 h-1.5 rounded-full transition-all duration-500 ${toWidthClass(periodAverageHealthScore)}`}
               />
             </div>
             <span className="text-xs text-gray-500">
@@ -294,8 +468,7 @@ export function OptimizedHealthSummary({
             </div>
             <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
               <div
-                className="bg-gradient-to-r from-orange-400 to-orange-600 h-1.5 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(100, (stats.currentStreak / Math.max(1, stats.longestStreak)) * 100)}%` }}
+                className={`bg-gradient-to-r from-orange-400 to-orange-600 h-1.5 rounded-full transition-all duration-500 ${toWidthClass((stats.currentStreak / Math.max(1, stats.longestStreak)) * 100)}`}
               />
             </div>
           </div>
@@ -328,8 +501,7 @@ export function OptimizedHealthSummary({
             </div>
             <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
               <div
-                className="bg-gradient-to-r from-blue-400 to-blue-600 h-1.5 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(100, (stats.weeklyLogs / (goals?.targetWeeklyLogs || 21)) * 100)}%` }}
+                className={`bg-gradient-to-r from-blue-400 to-blue-600 h-1.5 rounded-full transition-all duration-500 ${toWidthClass((stats.weeklyLogs / (goals?.targetWeeklyLogs || 21)) * 100)}`}
               />
             </div>
           </div>
@@ -368,7 +540,7 @@ export function OptimizedHealthSummary({
           </div>
         </div>
 
-        {/* BMI Card */}
+        {/* BMI Card (collapsible) */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-lg border border-gray-100 dark:border-gray-700">
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -389,9 +561,17 @@ export function OptimizedHealthSummary({
               {bmiInfo ? bmiInfo.categoryTH : 'ไม่ทราบ'}
             </div>
           </div>
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={() => setBmiOpen(!bmiOpen)}
+              className="text-xs px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+            >
+              {bmiOpen ? 'ซ่อนคำแนะนำ ▲' : 'ดูคำแนะนำ ▼'}
+            </button>
+          </div>
 
-          {bmiInfo && (
-            <div className="mt-4 space-y-3">
+          {bmiInfo && bmiOpen && (
+            <div className="space-y-3">
               {/* BMI Progress Bar */}
               <div className="bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
                 <div
@@ -400,10 +580,7 @@ export function OptimizedHealthSummary({
                     bmiInfo.category === 'normal' ? 'bg-green-400' :
                     bmiInfo.category === 'overweight' ? 'bg-yellow-400' :
                     bmiInfo.category === 'obese' ? 'bg-orange-400' : 'bg-red-400'
-                  }`}
-                  style={{
-                    width: `${Math.min(100, Math.max(0, (bmiInfo.value - 15) / 15 * 100))}%`
-                  }}
+                  } ${toWidthClass(Math.min(100, Math.max(0, (bmiInfo.value - 15) / 15 * 100)))}`}
                 />
               </div>
 
@@ -447,16 +624,7 @@ export function OptimizedHealthSummary({
             </div>
           )}
 
-          {!bmiInfo && (
-            <div className="mt-4 text-center">
-              <button
-                onClick={() => setActiveView('health-analysis')}
-                className="text-xs text-blue-600 hover:text-blue-700 font-medium"
-              >
-                ใส่ข้อมูลส่วนสูงและน้ำหนัก →
-              </button>
-            </div>
-          )}
+          {/* Removed edit link to avoid duplication with BMI analysis */}
         </div>
       </div>
 
@@ -464,15 +632,15 @@ export function OptimizedHealthSummary({
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-100 dark:border-gray-700">
         <div className="border-b border-gray-200 dark:border-gray-700">
           <nav className="flex">
-            {[
+            {([
               { id: 'dashboard', label: 'ภาพรวม', icon: '📊' },
               { id: 'insights', label: 'ข้อมูลเชิงลึก', icon: '💡' },
               { id: 'health-analysis', label: 'วิเคราะห์สุขภาพ', icon: '🏥' },
               { id: 'meals', label: 'มื้ออาหาร', icon: '🍽️' }
-            ].map((tab) => (
+            ] as const).map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveView(tab.id as any)}
+                onClick={() => setActiveView(tab.id)}
                 className={`
                   flex items-center gap-2 px-6 py-4 text-sm font-medium transition-colors border-b-2
                   ${activeView === tab.id
@@ -558,6 +726,7 @@ export function OptimizedHealthSummary({
                         cx="50%"
                         cy="50%"
                         labelLine={false}
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         label={(props: any) => `${props.name} ${props.percentage}%`}
                         outerRadius={80}
                         fill="#8884d8"
@@ -575,37 +744,58 @@ export function OptimizedHealthSummary({
 
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">ประสิทธิภาพการบันทึก</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">
-                        {stats.healthyDays}
+                {(() => {
+                  const daysWithData = healthData.filter(d => d.hasData).length;
+                  const safeDenom = Math.max(1, daysWithData);
+                  const healthy = healthData.filter(d => d.hasData && d.healthScore >= 70).length;
+                  const moderate = healthData.filter(d => d.hasData && d.healthScore >= 50 && d.healthScore < 70).length;
+                  const poor = healthData.filter(d => d.hasData && d.healthScore < 50).length;
+                  const healthyPct = Math.round((healthy / safeDenom) * 100);
+                  const moderatePct = Math.round((moderate / safeDenom) * 100);
+                  const poorPct = Math.min(100, Math.max(0, 100 - healthyPct - moderatePct));
+                  return (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center text-white font-bold">
+                            {healthy}
+                          </div>
+                          <div>
+                            <div className="font-medium text-green-900 dark:text-green-100">วันสุขภาพดี</div>
+                            <div className="text-sm text-green-700 dark:text-green-300">คะแนน ≥70</div>
+                          </div>
+                        </div>
+                        <div className="text-2xl font-bold text-green-600 dark:text-green-400">{healthyPct}%</div>
                       </div>
-                      <div>
-                        <div className="font-medium text-green-900 dark:text-green-100">วันสุขภาพดี</div>
-                        <div className="text-sm text-green-700 dark:text-green-300">คะแนน ≥70</div>
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                      {Math.round((stats.healthyDays / Math.max(1, stats.totalLogs)) * 100)}%
-                    </div>
-                  </div>
 
-                  <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">
-                        {stats.veggieMeals}
+                      <div className="flex items-center justify-between p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-yellow-500 rounded-full flex items-center justify-center text-white font-bold">
+                            {moderate}
+                          </div>
+                          <div>
+                            <div className="font-medium text-yellow-900 dark:text-yellow-100">วันสุขภาพปานกลาง</div>
+                            <div className="text-sm text-yellow-700 dark:text-yellow-300">50–69 คะแนน</div>
+                          </div>
+                        </div>
+                        <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{moderatePct}%</div>
                       </div>
-                      <div>
-                        <div className="font-medium text-blue-900 dark:text-blue-100">มื้อที่มีผัก</div>
-                        <div className="text-sm text-blue-700 dark:text-blue-300">โปรตีนและผัก</div>
+
+                      <div className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center text-white font-bold">
+                            {poor}
+                          </div>
+                          <div>
+                            <div className="font-medium text-red-900 dark:text-red-100">วันสุขภาพแย่</div>
+                            <div className="text-sm text-red-700 dark:text-red-300">น้อยกว่า 50 คะแนน</div>
+                          </div>
+                        </div>
+                        <div className="text-2xl font-bold text-red-600 dark:text-red-400">{poorPct}%</div>
                       </div>
                     </div>
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {Math.round((stats.veggieMeals / Math.max(1, stats.totalLogs)) * 100)}%
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -614,23 +804,33 @@ export function OptimizedHealthSummary({
         {/* Insights View */}
         {activeView === 'insights' && (
           <div className="p-6 space-y-6">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
-              <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4">
-                💡 ข้อมูลเชิงลึกสุขภาพของคุณ
-              </h3>
-              <div className="space-y-3">
-                {insights.length > 0 ? (
-                  insights.map((insight, index) => (
-                    <div key={index} className="flex items-start gap-3 p-3 bg-white/70 dark:bg-gray-800/70 rounded-lg">
-                      <span className="text-lg mt-0.5">🎯</span>
-                      <p className="text-blue-800 dark:text-blue-200 text-sm leading-relaxed">{insight}</p>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-blue-700 dark:text-blue-300 text-center py-8">
-                    เริ่มต้นบันทึกอาหารเพื่อรับข้อมูลเชิงลึกส่วนตัว
+            {/* Status + Factors summary */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                    {healthInsightExplanation.overallStatus.icon} สถานะสุขภาพ: {healthInsightExplanation.overallStatus.label}
+                  </h3>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    {bmiInfo
+                      ? `สุขภาพของคุณอยู่ในเกณฑ์${healthInsightExplanation.overallStatus.label} และมี BMI ${bmiInfo.value} (${bmiInfo.categoryTH})`
+                      : `สุขภาพของคุณอยู่ในเกณฑ์${healthInsightExplanation.overallStatus.label}`}
                   </p>
-                )}
+                </div>
+                <div className={`px-3 py-1 rounded-full text-xs font-medium border ${healthInsightExplanation.overallStatus.color}`}>
+                  {healthInsightExplanation.overallStatus.label}
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <p className="text-sm font-medium text-gray-900 dark:text-white mb-2">ปัจจัยหลัก:</p>
+                <ul className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
+                  <li>• คะแนนสุขภาพเฉลี่ย: คะแนนเฉลี่ย {Math.round(periodAverageHealthScore)}/100 แสดงถึง{periodAverageHealthScore >= 70 ? 'การเลือกอาหารที่ดีต่อสุขภาพ' : periodAverageHealthScore >= 50 ? 'การเลือกอาหารปานกลาง' : 'การเลือกอาหารที่ควรปรับปรุง'}</li>
+                  <li>• ความสม่ำเสมอ: บันทึก {stats.weeklyLogs} มื้อต่อสัปดาห์ {stats.weeklyLogs >= 14 ? 'สม่ำเสมอดี' : 'ไม่สม่ำเสมอเท่าที่ควร'}</li>
+                  {bmiInfo && (
+                    <li>• ดัชนีมวลกาย (BMI): BMI {bmiInfo.value} ({bmiInfo.categoryTH}) {bmiInfo.category === 'normal' ? 'อยู่ในเกณฑ์ปกติ' : 'อาจเสี่ยงต่อสุขภาพ'}</li>
+                  )}
+                </ul>
               </div>
             </div>
 
@@ -640,19 +840,19 @@ export function OptimizedHealthSummary({
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">คะแนนเฉลี่ย</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{Math.round(stats.averageHealthScore)}/100</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{Math.round(periodAverageHealthScore)}/100</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">มื้อที่บันทึกทั้งหมด</span>
-                    <span className="font-medium text-gray-900 dark:text-white">{stats.totalLogs} มื้อ</span>
+                    <span className="font-medium text-gray-900 dark:text-white">{healthData.reduce((sum,d)=>sum + d.meals,0)} มื้อ</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">มื้อสุขภาพดี</span>
-                    <span className="font-medium text-green-600 dark:text-green-400">{stats.healthyDays} มื้อ</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">วันสุขภาพดี</span>
+                    <span className="font-medium text-green-600 dark:text-green-400">{healthData.filter(d => d.healthyMeals > 0).length} วัน</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600 dark:text-gray-400">งบประมาณรวม</span>
-                    <span className="font-medium text-gray-900 dark:text-white">฿{Math.round(stats.totalBudget)}</span>
+                    <span className="font-medium text-gray-900 dark:text-white">฿{Math.round(healthData.reduce((sum,d)=>sum + d.budget,0))}</span>
                   </div>
                 </div>
               </div>
@@ -694,11 +894,23 @@ export function OptimizedHealthSummary({
               </p>
             </div>
 
-            {/* BMI Input Card */}
+            {/* BMI Input (toggle) */}
             {userId && (
+              <div className="flex justify-end">
+                <button
+                  onClick={() => setBmiFormOpen(!bmiFormOpen)}
+                  className="text-sm px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition"
+                >
+                  {bmiProfile?.height && bmiProfile?.weight ? 'แก้ไขข้อมูลสุขภาพ' : 'กรอกข้อมูลสุขภาพ'}
+                </button>
+              </div>
+            )}
+
+            {userId && bmiFormOpen && (
               <BMIInputCard
                 userId={userId}
-                onProfileUpdate={updateBMIProfile}
+                onProfileUpdate={(p) => updateBMIProfile?.(p)}
+                className="mt-2"
               />
             )}
 
@@ -707,17 +919,76 @@ export function OptimizedHealthSummary({
               <BMIHealthSummary
                 bmiInfo={bmiInfo}
                 profile={bmiProfile}
+                showAdvice={false}
               />
             )}
 
-            {/* Health Insight Card */}
-            <HealthInsightCard explanation={healthInsightExplanation} />
+            {/* Risks + Recommendations combined block */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="rounded-xl p-6 border bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800">
+                <h4 className="font-semibold text-red-900 dark:text-red-100 mb-3">⚠️ ความเสี่ยงต่อสุขภาพ</h4>
+                <ul className="list-disc list-inside text-sm text-red-800 dark:text-red-200 space-y-1">
+                  {(bmiInfo?.healthRisks?.length ? bmiInfo.healthRisks : healthInsightExplanation.overallStatus.concerns).slice(0,5).map((risk, idx) => (
+                    <li key={idx}>{risk}</li>
+                  ))}
+                  {(!bmiInfo || (bmiInfo && bmiInfo.healthRisks.length === 0)) && healthInsightExplanation.overallStatus.relatedConditions.slice(0,2).map((c, idx) => (
+                    <li key={`cond-${idx}`}>เสี่ยงต่อ{c.nameTH}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="rounded-xl p-6 border bg-emerald-50 border-emerald-200 dark:bg-emerald-900/20 dark:border-emerald-800">
+                <h4 className="font-semibold text-emerald-900 dark:text-emerald-100 mb-3">💡 คำแนะนำ</h4>
+                <ul className="list-disc list-inside text-sm text-emerald-800 dark:text-emerald-200 space-y-1">
+                  {(bmiInfo?.recommendations?.length ? bmiInfo.recommendations : healthInsightExplanation.overallStatus.recommendations || []).slice(0,5).map((rec, idx) => (
+                    <li key={idx}>{rec}</li>
+                  ))}
+                  {(!bmiInfo || (bmiInfo && bmiInfo.recommendations.length < 3)) && healthInsightExplanation.actionableAdvice.slice(0,2).map((a, idx) => (
+                    <li key={`adv-${idx}`}>{a.advice}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
         )}
 
         {/* Meals View */}
         {activeView === 'meals' && (
           <div className="p-6 space-y-6">
+            {/* Action Plan moved here with links to filtered menus */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-md font-semibold text-gray-900 dark:text-white">🎯 แผนการดำเนินการ</h3>
+              </div>
+              {(() => {
+                // Recommend categories based on BMI/status
+                const recCats: { key: string; label: string }[] = [];
+                if (bmiInfo?.category === 'underweight') {
+                  recCats.push({ key: 'RICE', label: 'เมนูข้าว (เพิ่มโปรตีน/แคลอรี่)' });
+                  recCats.push({ key: 'NOODLE', label: 'ก๋วยเตี๋ยว (เพิ่มโปรตีน)' });
+                } else if (bmiInfo?.category === 'overweight' || bmiInfo?.category === 'obese' || bmiInfo?.category === 'severely_obese') {
+                  recCats.push({ key: 'RICE', label: 'ข้าว (เลือกต้ม/นึ่ง/ปิ้ง)' });
+                  recCats.push({ key: 'NOODLE', label: 'ก๋วยเตี๋ยว (เลี่ยงทอด)' });
+                } else {
+                  recCats.push({ key: 'RICE', label: 'ข้าว' });
+                  recCats.push({ key: 'NOODLE', label: 'ก๋วยเตี๋ยว' });
+                }
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {recCats.map(cat => (
+                      <Link
+                        key={cat.key}
+                        to="/search"
+                        state={{ category: cat.key }}
+                        className="px-3 py-1.5 text-sm rounded-full border bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800"
+                        aria-label={`ดูเมนูประเภท ${cat.label}`}
+                      >
+                        🔎 {cat.label}
+                      </Link>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">ความถี่การบันทึกมื้ออาหาร</h3>
@@ -769,32 +1040,34 @@ export function OptimizedHealthSummary({
               </div>
             </div>
 
-            {/* Recent Meals Summary */}
+            {/* Recent Meals Summary (Category/Taste/Junk) */}
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">สรุปมื้อล่าสุด</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4 text-center">
-                  <div className="text-2xl mb-2">🥗</div>
-                  <div className="text-lg font-semibold text-green-900 dark:text-green-100">
-                    {healthData.filter(d => d.healthyMeals > 0).length}
-                  </div>
-                  <div className="text-sm text-green-700 dark:text-green-300">วันที่มีมื้อสุขภาพดี</div>
+                <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-4">
+                  <div className="text-sm font-semibold text-green-900 dark:text-green-100 mb-2">ประเภทอาหารที่กินบ่อย</div>
+                  <ul className="text-sm text-green-800 dark:text-green-200 space-y-1">
+                    {categoryData.slice(0,3).map((c, idx) => (
+                      <li key={idx}>• {c.name} — {c.percentage}%</li>
+                    ))}
+                    {categoryData.length === 0 && <li className="text-green-700 dark:text-green-300">ไม่มีข้อมูล</li>}
+                  </ul>
                 </div>
 
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 text-center">
-                  <div className="text-2xl mb-2">📊</div>
-                  <div className="text-lg font-semibold text-blue-900 dark:text-blue-100">
-                    {healthData.reduce((sum, d) => sum + d.meals, 0)}
-                  </div>
-                  <div className="text-sm text-blue-700 dark:text-blue-300">มื้อทั้งหมด</div>
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4">
+                  <div className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-2">รสชาติที่ชอบ</div>
+                  <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                    {tasteData.slice(0,3).map((t, idx) => (
+                      <li key={idx}>• {t.name} — {t.percentage}%</li>
+                    ))}
+                    {tasteData.length === 0 && <li className="text-blue-700 dark:text-blue-300">ไม่มีข้อมูล</li>}
+                  </ul>
                 </div>
 
-                <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 text-center">
-                  <div className="text-2xl mb-2">💰</div>
-                  <div className="text-lg font-semibold text-purple-900 dark:text-purple-100">
-                    ฿{Math.round(healthData.reduce((sum, d) => sum + d.budget, 0))}
-                  </div>
-                  <div className="text-sm text-purple-700 dark:text-purple-300">งบประมาณรวม</div>
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 text-center">
+                  <div className="text-2xl mb-2">🍟</div>
+                  <div className="text-lg font-semibold text-amber-900 dark:text-amber-100">{junkStats.junkCount}</div>
+                  <div className="text-sm text-amber-700 dark:text-amber-300">Junk food ({junkStats.percent}%)</div>
                 </div>
               </div>
             </div>

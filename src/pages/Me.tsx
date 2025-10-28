@@ -5,9 +5,8 @@ import { EnhancedMealHistory } from '../components/meal/EnhancedMealHistory';
 import { useAuth } from '../contexts/AuthContext';
 import type { Log, Menu, LogWithMenu } from '../types/menu';
 import { OptimizedHealthSummary } from '../components/health/OptimizedHealthSummary';
-import { BadgeCollection } from '../components/badges/EnhancedBadge';
-import { checkBadgeEligibility, getBadgesByCategory, sortBadges, calculateUserStats } from '../utils/badgeSystem';
-
+import { calculateUserStats } from '../utils/badgeSystem';
+// import { Link } from 'react-router-dom';
 
 export default function Me() {
   const { user, userProfile } = useAuth();
@@ -15,7 +14,7 @@ export default function Me() {
   const { menus: allMenus, error: menusError } = useMenus();
   const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'month' | 'all'>('week');
   const [visibilityFilter, setVisibilityFilter] = useState<'all' | 'public' | 'private'>('all');
-  const [activeBadgeTab, setActiveBadgeTab] = useState<'all' | 'streaks' | 'meals' | 'health' | 'nutrition'>('all');
+  // Badge tabs moved to /achievements
   
   // Metric panel timeframe for OptimizedHealthSummary
   const [metricTime, setMetricTime] = useState<'day' | 'week' | 'month'>('week');
@@ -81,9 +80,7 @@ export default function Me() {
   const userStats = useMemo(() => calculateUserStats(allUserLogs), [allUserLogs]);
 
   // Enhanced badge calculation with original logic
-  const allBadges = useMemo(() => checkBadgeEligibility(userStats, allUserLogs), [userStats, allUserLogs]);
-  const sortedBadges = useMemo(() => sortBadges(allBadges), [allBadges]);
-  const categorizedBadges = useMemo(() => getBadgesByCategory(allBadges), [allBadges]);
+  // Badges moved to /achievements page
 
   // Show login prompt if not authenticated or anonymous user
   if (!user || !userProfile?.email) {
@@ -110,16 +107,7 @@ export default function Me() {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
-            👤 {userProfile?.displayName || 'ฉัน'}
-          </h1>
-          {userProfile?.faculty && (
-            <p className="text-gray-600 dark:text-gray-300">
-              คณะ: {userProfile.faculty}
-            </p>
-          )}
-        </div>
+        {/* Removed large account header to save space; name will be shown alongside health summary if needed */}
         
         {/* Optimized Health Summary */}
         <OptimizedHealthSummary
@@ -130,60 +118,7 @@ export default function Me() {
           userId={user?.uid}
         />
 
-        {/* Enhanced Badge System */}
-        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">🏆 เหรียญตราของคุณ (AI-Powered)</h2>
-            <div className="text-sm text-gray-500">
-              ได้รับ {allBadges.filter(b => b.isEarned).length} / {allBadges.length} เหรียญตรา
-            </div>
-          </div>
-
-          {/* Badge category tabs */}
-          <div className="flex flex-wrap gap-2 mb-6">
-            {[
-              { id: 'all', label: 'ทั้งหมด', count: allBadges.length },
-              { id: 'streaks', label: 'สตรีค', count: categorizedBadges.streaks.length },
-              { id: 'meals', label: 'มื้ออาหาร', count: categorizedBadges.meals.length },
-              { id: 'health', label: 'สุขภาพ', count: categorizedBadges.health.length },
-              { id: 'nutrition', label: 'โภชนาการ', count: categorizedBadges.nutrition.length }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveBadgeTab(tab.id as 'all' | 'streaks' | 'meals' | 'health' | 'nutrition')}
-                className={`
-                  px-4 py-2 rounded-lg text-sm font-medium transition-all
-                  ${activeBadgeTab === tab.id
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }
-                `}
-              >
-                {tab.label}
-                <span className="ml-2 text-xs bg-gray-200 bg-opacity-30 px-2 py-1 rounded-full">
-                  {tab.count}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* Get filtered badges based on active tab */}
-          {(() => {
-            const displayedBadges = activeBadgeTab === 'all' ? sortedBadges :
-              activeBadgeTab === 'streaks' ? categorizedBadges.streaks :
-              activeBadgeTab === 'meals' ? categorizedBadges.meals :
-              activeBadgeTab === 'health' ? categorizedBadges.health :
-              categorizedBadges.nutrition;
-
-            return (
-              <BadgeCollection
-                badges={displayedBadges}
-                showProgress={true}
-                maxBadgesPerRow={4}
-              />
-            );
-          })()}
-        </div>
+        {/* Achievements CTA removed for both mobile and desktop; use Navbar link to navigate to /achievements */}
 
         {/* User Stats Summary */}
         <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">

@@ -1,18 +1,19 @@
 import React, { useState, useMemo } from 'react';
-import type { Log, Menu, LogWithMenu } from '../../types/menu';
+import type { Log, Menu } from '../../types/menu';
 import LogCard from '../LogCard';
 import type { Taste } from '../../types/menu';
+import { calcHealthScore } from '../../utils/healthScore';
 
 interface EnhancedMealHistoryProps {
   logs: (Log & { menu: Menu })[];
-  onHistoryFocus?: (dim: string, key: string) => void;
 }
 
-export function EnhancedMealHistory({ logs, onHistoryFocus }: EnhancedMealHistoryProps) {
+export function EnhancedMealHistory({ logs }: EnhancedMealHistoryProps) {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<'date' | 'health' | 'price'>('date');
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>({});
 
   // Process logs for better organization
   const processedLogs = useMemo(() => {
@@ -72,6 +73,10 @@ export function EnhancedMealHistory({ logs, onHistoryFocus }: EnhancedMealHistor
     });
   }, [processedLogs]);
 
+  const toggleDate = (dateKey: string) => {
+    setExpandedDates(prev => ({ ...prev, [dateKey]: !prev[dateKey] }));
+  };
+
   // Get unique categories for filter
   const categories = useMemo(() => {
     const cats = new Set(logs.map(log => log.menu.category));
@@ -98,12 +103,13 @@ export function EnhancedMealHistory({ logs, onHistoryFocus }: EnhancedMealHistor
     return 'text-red-600 bg-red-50 border-red-200';
   };
 
-  // Calculate daily statistics
+  // Calculate daily statistics (with healthScore fallback)
   const getDailyStats = (dayLogs: (Log & { menu: Menu })[]) => {
-    const totalHealth = dayLogs.reduce((sum, log) => sum + (log.menu.healthScore || 0), 0);
+    const scores = dayLogs.map(l => (l.menu.healthScore ?? calcHealthScore(l.menu)) || 0);
+    const totalHealth = scores.reduce((a, b) => a + b, 0);
     const avgHealth = dayLogs.length > 0 ? totalHealth / dayLogs.length : 0;
     const totalBudget = dayLogs.reduce((sum, log) => sum + ((log.menu.price || 0) * log.quantity), 0);
-    const healthyMeals = dayLogs.filter(log => (log.menu.healthScore || 0) >= 70).length;
+    const healthyMeals = scores.filter(s => s >= 70).length;
 
     return {
       avgHealth: Math.round(avgHealth),
@@ -166,7 +172,8 @@ export function EnhancedMealHistory({ logs, onHistoryFocus }: EnhancedMealHistor
             {/* Sort selector */}
             <select
               value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
+              onChange={(e) => setSortBy(e.target.value as 'date' | 'health' | 'price')}
+              aria-label="Sort meal history by"
               className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="date">เรียงตามวันที่</option>
@@ -253,84 +260,93 @@ export function EnhancedMealHistory({ logs, onHistoryFocus }: EnhancedMealHistor
                         </p>
                       </div>
 
-                      <div className="flex flex-wrap gap-3">
+                      <div className="flex flex-wrap gap-3 items-center">
                         <div className={`px-3 py-1.5 rounded-lg border text-sm font-medium ${stats.healthScoreColor}`}>
                           คะแนนเฉลี่ย: {stats.avgHealth}/100
                         </div>
                         <div className="px-3 py-1.5 rounded-lg bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 text-sm font-medium text-purple-700 dark:text-purple-300">
                           งบประมาณ: ฿{stats.totalBudget}
                         </div>
+                        <button
+                          onClick={() => toggleDate(date)}
+                          className="ml-2 text-sm px-3 py-1.5 rounded-lg bg-white text-gray-800 dark:bg-blue-600 dark:text-white border border-gray-300 dark:border-blue-500 hover:bg-gray-100 dark:hover:bg-blue-500 transition"
+                          aria-controls={`day-section-${date}`}
+                        >
+                          {expandedDates[date] ? 'ซ่อนรายละเอียด ▲' : 'ดูรายละเอียด ▼'}
+                        </button>
                       </div>
                     </div>
                   </div>
 
                   {/* Meals for this day */}
-                  {viewMode === 'grid' ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {dayLogs.map((log) => (
-                        <div key={log.id} className="group relative">
-                          <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-2 border border-gray-200 dark:border-gray-700">
-                              <div className="text-xs space-y-1">
-                                {log.menu.tastes?.slice(0, 3).map((taste, idx) => (
-                                  <div key={idx} className="flex items-center gap-1">
-                                    <span>{getTasteIcon(taste)}</span>
-                                    <span className="text-gray-600 dark:text-gray-400">{taste}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          </div>
-                          <LogCard log={log} menu={log.menu} />
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {dayLogs.map((log) => (
-                        <div key={log.id} className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 hover:bg-gray-100 dark:hover:bg-gray-900/70 transition-colors">
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3">
-                                <div className="text-2xl">
-                                  {log.menu.imageUrl ? (
-                                    <img src={log.menu.imageUrl} alt={log.menu.name} className="w-12 h-12 rounded-lg object-cover" />
-                                  ) : (
-                                    '🍽️'
-                                  )}
-                                </div>
-                                <div className="flex-1">
-                                  <h4 className="font-semibold text-gray-900 dark:text-white">{log.menu.name}</h4>
-                                  <p className="text-sm text-gray-600 dark:text-gray-400">{log.menu.vendor} • {getCategoryName(log.menu.category)}</p>
-                                  <div className="flex items-center gap-2 mt-1">
-                                    <div className={`px-2 py-0.5 rounded text-xs font-medium ${getHealthScoreColor(log.menu.healthScore || 0)}`}>
-                                      คะแนน: {log.menu.healthScore || 0}
+                  {expandedDates[date] && (
+                    viewMode === 'grid' ? (
+                      <div id={`day-section-${date}`} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {dayLogs.map((log) => (
+                          <div key={log.id} className="group relative">
+                            <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-2 border border-gray-200 dark:border-gray-700">
+                                <div className="text-xs space-y-1">
+                                  {log.menu.tastes?.slice(0, 3).map((taste, idx) => (
+                                    <div key={idx} className="flex items-center gap-1">
+                                      <span>{getTasteIcon(taste)}</span>
+                                      <span className="text-gray-600 dark:text-gray-400">{taste}</span>
                                     </div>
-                                    <span className="text-xs text-gray-500">
-                                      {log.menu.price ? `฿${log.menu.price * log.quantity}` : 'ราคาไม่ระบุ'}
-                                    </span>
-                                    <span className="text-xs text-gray-500">
-                                      {new Date(log.at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
-                                    </span>
-                                  </div>
+                                  ))}
                                 </div>
                               </div>
                             </div>
+                            <LogCard log={log} menu={log.menu} />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div id={`day-section-${date}`} className="space-y-3">
+                        {dayLogs.map((log) => (
+                          <div key={log.id} className="bg-gray-50 dark:bg-gray-900/50 rounded-xl p-4 hover:bg-gray-100 dark:hover:bg-gray-900/70 transition-colors">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3">
+                                  <div className="text-2xl">
+                                    {log.menu.imageUrl ? (
+                                      <img src={log.menu.imageUrl} alt={log.menu.name} className="w-12 h-12 rounded-lg object-cover" />
+                                    ) : (
+                                      '🍽️'
+                                    )}
+                                  </div>
+                                  <div className="flex-1">
+                                    <h4 className="font-semibold text-gray-900 dark:text-white">{log.menu.name}</h4>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">{log.menu.vendor} • {getCategoryName(log.menu.category)}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <div className={`px-2 py-0.5 rounded text-xs font-medium ${getHealthScoreColor((log.menu.healthScore ?? calcHealthScore(log.menu)) || 0)}`}>
+                                        คะแนน: {(log.menu.healthScore ?? calcHealthScore(log.menu)) || 0}
+                                      </div>
+                                      <span className="text-xs text-gray-500">
+                                        {log.menu.price ? `฿${log.menu.price * log.quantity}` : 'ราคาไม่ระบุ'}
+                                      </span>
+                                      <span className="text-xs text-gray-500">
+                                        {new Date(log.at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
 
-                            <div className="flex items-center gap-2 ml-4">
-                              {log.menu.tastes?.slice(0, 3).map((taste, idx) => (
-                                <span key={idx} className="text-lg" title={taste}>
-                                  {getTasteIcon(taste)}
+                              <div className="flex items-center gap-2 ml-4">
+                                {log.menu.tastes?.slice(0, 3).map((taste, idx) => (
+                                  <span key={idx} className="text-lg" title={taste}>
+                                    {getTasteIcon(taste)}
+                                  </span>
+                                ))}
+                                <span className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-xs text-gray-700 dark:text-gray-300">
+                                  x{log.quantity}
                                 </span>
-                              ))}
-                              <span className="px-2 py-1 bg-gray-200 dark:bg-gray-700 rounded text-xs text-gray-700 dark:text-gray-300">
-                                x{log.quantity}
-                              </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    )
                   )}
                 </div>
               );
